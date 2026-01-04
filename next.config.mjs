@@ -6,7 +6,15 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  productionBrowserSourceMaps: false, // اینجا در سطح بالا
-}
+  productionBrowserSourceMaps: false,
 
-export default nextConfig
+  // ✅ برای جلوگیری از دعوای Next/Turbopack با Prisma
+  serverExternalPackages: ["@prisma/client", "prisma"],
+
+  // ✅ مطمئن می‌شه فایل‌های Prisma Client همراه خروجی deploy می‌رن
+  outputFileTracingIncludes: {
+    "/*": ["./node_modules/.prisma/client/**/*"],
+  },
+};
+
+export default nextConfig;
