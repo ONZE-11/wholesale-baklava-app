@@ -1,6 +1,0 @@
-onlyBuiltDependencies:
-  - '@clerk/shared'
-  - '@prisma/engines'
-  - bcrypt
-  - prisma
-  - sharp
