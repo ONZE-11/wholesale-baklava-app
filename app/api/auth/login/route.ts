@@ -54,7 +54,6 @@ export async function POST(request: NextRequest) {
         id: user.id,
         email: user.email,
         businessName: user.business_name,
-        approvalStatus: user.approval_status,
       },
     });
   } catch (error: any) {
