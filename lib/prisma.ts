@@ -1,17 +1,24 @@
 // lib/prisma.ts
-import { PrismaClient } from "../lib/generated/prisma/client"; // مسیر خودت را اصلاح کن
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 
 declare global {
-  // اضافه کردن prisma به globalThis برای جلوگیری از multiple clients در dev
+  // eslint-disable-next-line no-var
   var prisma: PrismaClient | undefined;
 }
 
-export const prisma: PrismaClient =
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+const adapter = new PrismaPg(pool);
+
+export const prisma =
   globalThis.prisma ??
   new PrismaClient({
-    accelerateUrl: process.env.DATABASE_URL || "", // مقدار معتبر از .env
-    log: ["error", "warn"],
+    adapter,
+    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 
-// فقط در محیط توسعه، singleton روی global ذخیره می‌شود
 if (process.env.NODE_ENV !== "production") globalThis.prisma = prisma;
