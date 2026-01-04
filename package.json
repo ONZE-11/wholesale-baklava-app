@@ -2,6 +2,7 @@
   "name": "my-v0-project",
   "version": "0.1.0",
   "private": true,
+
   "scripts": {
    "dev": "next dev",
     "lint": "eslint .",
@@ -9,6 +10,7 @@
     "build": "prisma generate && next build",
     "start": "next start"
   },
+
   "dependencies": {
     "@clerk/clerk-sdk-node": "^5.1.6",
     "@clerk/nextjs": "^6.36.5",
@@ -91,5 +93,6 @@
     "tw-animate-css": "1.3.3",
     "typescript": "^5.9.3",
     "prisma": "^7.2.0"
-  }
+  },
+  "packageManager": "pnpm@10.0.0"
 }
