@@ -20,23 +20,19 @@ import { useLanguage } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import { calcTotalsFromItems, IVA_PERCENT } from "@/lib/tax";
 
-
-
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, totalPrice, clearCart } = useCart();
 
-const totals = useMemo(() => {
-  return calcTotalsFromItems(
-    (items ?? []).map((it) => ({
-      price: Number(it.price),
-      quantity: Number(it.quantity),
-    }))
-  );
-}, [items]);
+  const totals = useMemo(() => {
+    return calcTotalsFromItems(
+      (items ?? []).map((it) => ({
+        price: Number(it.price),
+        quantity: Number(it.quantity),
+      }))
+    );
+  }, [items]);
 
-
-  
   const { toast } = useToast();
   const { lang } = useLanguage();
 
@@ -150,34 +146,15 @@ const totals = useMemo(() => {
         throw new Error("Shipping address is required");
       }
       if (paymentMethod === "stripe") {
-        // 1) ساخت سفارش در دیتابیس
-        const orderRes = await fetch("/api/orders", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            items,
-            shippingAddress: shippingAddressObj,
-            paymentMethod: "stripe",
-            notes: formData.notes,
-          }),
-        });
-
-        const orderJson = await orderRes.json();
-
-        if (!orderRes.ok || !orderJson?.orderId) {
-          throw new Error(orderJson?.error || "Failed to create order");
-        }
-
-        const orderId = orderJson.orderId;
-
-        // 2) ساخت سشن Stripe
         const res = await fetch("/api/stripe/session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             items,
-            orderId,
+            shippingAddress: shippingAddressObj,
+            notes: formData.notes,
+            // اگر user id لازم داری:
+            userId: authUser.id,
           }),
         });
 
@@ -186,8 +163,6 @@ const totals = useMemo(() => {
         if (!res.ok || !data?.url) {
           throw new Error(data?.error || t("checkout.stripe_error", lang));
         }
-
-        localStorage.setItem("lastOrderId", orderId); // اختیاری
 
         window.location.href = data.url;
         return;
@@ -400,23 +375,24 @@ const totals = useMemo(() => {
                     </div>
                   ))}
 
-               <div className="border-t pt-4 space-y-2 text-sm">
-  <div className="flex justify-between">
-    <span>Subtotal</span>
-    <span>€{totals.subtotal.toFixed(2)}</span>
-  </div>
+                  <div className="border-t pt-4 space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Subtotal</span>
+                      <span>€{totals.subtotal.toFixed(2)}</span>
+                    </div>
 
-  <div className="flex justify-between">
-    <span>IVA ({IVA_PERCENT}%)</span>
-    <span>€{totals.tax.toFixed(2)}</span>
-  </div>
+                    <div className="flex justify-between">
+                      <span>IVA ({IVA_PERCENT}%)</span>
+                      <span>€{totals.tax.toFixed(2)}</span>
+                    </div>
 
-  <div className="flex justify-between text-lg font-bold pt-2">
-    <span>{t("checkout.total", lang)}</span>
-    <span className="text-primary">€{totals.total.toFixed(2)}</span>
-  </div>
-</div>
-
+                    <div className="flex justify-between text-lg font-bold pt-2">
+                      <span>{t("checkout.total", lang)}</span>
+                      <span className="text-primary">
+                        €{totals.total.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
 
                   <Button
                     type="submit"
@@ -438,4 +414,3 @@ const totals = useMemo(() => {
     </div>
   );
 }
-
