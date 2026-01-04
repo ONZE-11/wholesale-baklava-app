@@ -1,24 +1,37 @@
 // lib/db.ts
 import { prisma } from "@/lib/prisma";
 
+type ApprovalStatus = "pending" | "approved" | "rejected";
+type PaymentStatus = "unpaid" | "paid" | "failed";
+
 export const db = {
   users: {
     async create(data: {
       email: string;
       business_name: string;
-      cif: string;
+      cif: string; // توجه: تو schema فعلی User فیلد cif نداری
       phone: string;
       address: string;
       city: string;
-      postal_code: string;
-      country: string;
+      postal_code?: string | null;
+      country?: string | null;
       auth_id: string;
     }) {
-      return prisma.user.create({ data });
+      // اگر واقعاً cif لازم داری باید به schema اضافه بشه.
+      // فعلاً حذفش می‌کنیم تا Prisma خطا نده.
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { cif, ...rest } = data;
+
+      return prisma.user.create({
+        data: {
+          ...rest,
+          postal_code: data.postal_code ?? null,
+          country: data.country ?? null,
+        },
+      });
     },
 
     async findByEmail(email: string) {
-      // از findFirst به جای findUnique استفاده می‌کنیم
       return prisma.user.findFirst({ where: { email } });
     },
 
@@ -34,20 +47,18 @@ export const db = {
       return prisma.user.findMany({ where: { approval_status: "pending" } });
     },
 
-    async updateStatus(
-      id: string,
-      status: "approved" | "rejected",
-      notes?: string
-    ) {
+    async updateStatus(id: string, status: Exclude<ApprovalStatus, "pending">, notes?: string) {
       return prisma.user.update({
         where: { id },
         data: {
           approval_status: status,
-          admin_notes: notes,
+          // طبق schema فقط rejection_notes داریم، پس فقط برای rejected ذخیره می‌کنیم
+          rejection_notes: status === "rejected" ? (notes ?? null) : null,
         },
       });
     },
   },
+
   products: {
     async findById(id: string) {
       return prisma.product.findUnique({ where: { id } });
@@ -115,7 +126,10 @@ export const db = {
 
   orders: {
     async findById(id: string) {
-      return prisma.order.findUnique({ where: { id }, include: { items: true } });
+      return prisma.order.findUnique({
+        where: { id },
+        include: { items: true },
+      });
     },
 
     async findAll() {
@@ -126,7 +140,7 @@ export const db = {
       user_id: string;
       items: { product_id: string; quantity: number; unit_price?: number }[];
       total_amount: number;
-      payment_status: "pending" | "paid" | "failed";
+      payment_status: PaymentStatus;
       shipping_address: string;
       notes?: string;
       payment_method: string;
@@ -152,17 +166,11 @@ export const db = {
       });
     },
 
-    async updatePaymentStatus(
-      id: string,
-      status: "pending" | "paid" | "failed",
-      paymentIntentId?: string
-    ) {
+    async updatePaymentStatus(id: string, status: PaymentStatus) {
+      // schema فعلی Order هیچ فیلدی برای paymentIntentId ندارد
       return prisma.order.update({
         where: { id },
-        data: {
-          payment_status: status,
-          ...(paymentIntentId ? { stripe_payment_intent_id: paymentIntentId } : {}),
-        },
+        data: { payment_status: status },
       });
     },
   },
@@ -183,5 +191,3 @@ export const db = {
     },
   },
 };
-
-
