@@ -17,7 +17,6 @@ export default function SuccessPage() {
   const sessionId = searchParams.get("session_id");
 
   useEffect(() => {
-    // ✅ بعد از موفقیت Stripe کارت رو خالی کن
     clearCart();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -33,7 +32,6 @@ export default function SuccessPage() {
           {t("success.message", lang)}
         </p>
 
-        {/* اختیاری: فقط برای دیباگ نشان بده */}
         {sessionId && (
           <p className="text-gray-500 text-xs mb-6 break-all">
             Session: {sessionId}
@@ -48,13 +46,15 @@ export default function SuccessPage() {
             {t("success.back_home", lang)}
           </Link>
 
-          <Button variant="outline" onClick={() => router.push("/orders")}>
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/dashboard/orders?lang=${lang}`)}
+          >
             My orders
           </Button>
         </div>
 
         <p className="text-gray-500 text-xs mt-6">
-          {/* متن پیشنهادی: چون ثبت سفارش توسط وبهوک ممکنه چند ثانیه طول بکشه */}
           Your order will appear in “My orders” shortly.
         </p>
       </div>
