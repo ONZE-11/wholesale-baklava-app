@@ -10,7 +10,6 @@ export default function CheckoutCancelPage() {
   const searchParams = useSearchParams();
   const [lang, setLang] = useState<"en" | "es">("es");
 
-  // خواندن زبان از localStorage یا query param
   useEffect(() => {
     const savedLang = localStorage.getItem("lang") as "en" | "es" | null;
     const queryLang = searchParams.get("lang") as "en" | "es" | null;
@@ -33,12 +32,8 @@ export default function CheckoutCancelPage() {
         <h1 className="text-2xl font-bold text-gray-900">
           {t("checkout.payment_cancelled", lang)}
         </h1>
-        <p className="text-gray-600">
-          {t("checkout.return_try_again", lang)}
-        </p>
-        <Button onClick={handleBack}>
-          {t("checkout.back_to_checkout", lang)}
-        </Button>
+        <p className="text-gray-600">{t("checkout.return_try_again", lang)}</p>
+        <Button onClick={handleBack}>{t("checkout.back_to_checkout", lang)}</Button>
       </div>
     </div>
   );

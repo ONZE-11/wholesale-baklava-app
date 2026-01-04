@@ -1,26 +1,26 @@
 "use client";
 
 import { useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { t } from "@/lib/i18n";
 import { useLanguage } from "@/lib/language-context";
 import { useCart } from "@/lib/cart-context";
+import { Button } from "@/components/ui/button";
 
 export default function SuccessPage() {
   const searchParams = useSearchParams();
-  const orderId = searchParams.get("orderId");
+  const router = useRouter();
   const { lang } = useLanguage();
   const { clearCart } = useCart();
 
-useEffect(() => {
-  clearCart();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []);
+  const sessionId = searchParams.get("session_id");
 
-
-  console.log("✅ SUCCESS PAGE LOADED (checkout/success)");
-
+  useEffect(() => {
+    // ✅ بعد از موفقیت Stripe کارت رو خالی کن
+    clearCart();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100 py-12 px-4">
@@ -33,18 +33,30 @@ useEffect(() => {
           {t("success.message", lang)}
         </p>
 
-        {orderId && (
-          <p className="text-gray-800 font-medium mb-6">
-            {t("success.order_number", lang)}: {orderId}
+        {/* اختیاری: فقط برای دیباگ نشان بده */}
+        {sessionId && (
+          <p className="text-gray-500 text-xs mb-6 break-all">
+            Session: {sessionId}
           </p>
         )}
 
-        <Link
-          href="/"
-          className="inline-block bg-[#8B4513] hover:bg-[#A0522D] text-white px-6 py-3 sm:px-8 sm:py-4 rounded-lg text-sm sm:text-base font-medium transition"
-        >
-          {t("success.back_home", lang)}
-        </Link>
+        <div className="flex gap-3">
+          <Link
+            href="/"
+            className="inline-block bg-[#8B4513] hover:bg-[#A0522D] text-white px-6 py-3 sm:px-8 sm:py-4 rounded-lg text-sm sm:text-base font-medium transition"
+          >
+            {t("success.back_home", lang)}
+          </Link>
+
+          <Button variant="outline" onClick={() => router.push("/orders")}>
+            My orders
+          </Button>
+        </div>
+
+        <p className="text-gray-500 text-xs mt-6">
+          {/* متن پیشنهادی: چون ثبت سفارش توسط وبهوک ممکنه چند ثانیه طول بکشه */}
+          Your order will appear in “My orders” shortly.
+        </p>
       </div>
     </div>
   );
