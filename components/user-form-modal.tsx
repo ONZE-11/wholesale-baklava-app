@@ -1,0 +1,219 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+
+import type { User, ApprovalStatus } from "@/types/user";
+
+type Mode = "create" | "edit";
+
+type Props = {
+  isOpen: boolean;
+  mode: Mode;
+  user: (User & { role?: string }) | null;
+  onClose: () => void;
+  onSubmit: (payload: Partial<User>) => void;
+};
+
+function normalizeEmail(v: string) {
+  return v.trim().toLowerCase();
+}
+
+export function UserFormModal({ isOpen, mode, user, onClose, onSubmit }: Props) {
+  // ✅ فرم کامل مثل رجیستر
+  const [email, setEmail] = useState("");
+  const [business_name, setBusinessName] = useState("");
+  const [cif, setCif] = useState("");
+  const [tax_id, setTaxId] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [postal_code, setPostalCode] = useState("");
+  const [country, setCountry] = useState("");
+
+  // این‌ها اگر در ادمین لازم داری
+  const [role, setRole] = useState<string>("user");
+  const [approval_status, setApprovalStatus] = useState<ApprovalStatus>("pending");
+
+  const [error, setError] = useState<string | null>(null);
+
+  const title = mode === "create" ? "Add user" : "Edit user";
+  const desc =
+    mode === "create"
+      ? "Create a user and send a set-password email."
+      : "Update user business profile details.";
+
+  // ✅ وقتی مودال باز شد، مقادیر را sync کن
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setError(null);
+
+    setEmail(user?.email ?? "");
+    setBusinessName(user?.business_name ?? "");
+    // اگر تایپت ندارد، با any بخوان (چون شما هنوز User type رو شاید کامل نکردی)
+    setCif((user as any)?.cif ?? "");
+    setTaxId((user as any)?.tax_id ?? "");
+    setPhone(user?.phone ?? "");
+    setAddress(user?.address ?? "");
+    setCity(user?.city ?? "");
+    setPostalCode((user as any)?.postal_code ?? "");
+    setCountry(user?.country ?? "");
+
+    setRole((user as any)?.role ?? "user");
+    setApprovalStatus((user as any)?.approval_status ?? "pending");
+  }, [isOpen, user]);
+
+  const canSubmit = useMemo(() => {
+    const requiredOk =
+      normalizeEmail(email) &&
+      business_name.trim() &&
+      cif.trim() &&
+      phone.trim() &&
+      address.trim() &&
+      city.trim() &&
+      country.trim();
+
+    // اگر می‌خوای Postal Code هم اجباری باشد، این را هم اضافه کن:
+    // && postal_code.trim()
+
+    return Boolean(requiredOk);
+  }, [email, business_name, cif, phone, address, city, country /*, postal_code*/]);
+
+  const handleSubmit = () => {
+    setError(null);
+
+    const cleanEmail = normalizeEmail(email);
+
+    if (!cleanEmail) return setError("Email is required.");
+    if (!business_name.trim()) return setError("Business name is required.");
+    if (!cif.trim()) return setError("CIF is required.");
+    if (!phone.trim()) return setError("Phone is required.");
+    if (!address.trim()) return setError("Address is required.");
+    if (!city.trim()) return setError("City is required.");
+    if (!country.trim()) return setError("Country is required.");
+
+    // اگر می‌خوای postal code اجباری باشد:
+    // if (!postal_code.trim()) return setError("Postal code is required.");
+
+    onSubmit({
+      email: cleanEmail,
+      business_name: business_name.trim(),
+      cif: cif.trim(),
+      tax_id: tax_id.trim() || null,
+      phone: phone.trim(),
+      address: address.trim(),
+      city: city.trim(),
+      postal_code: postal_code.trim() || null,
+      country: country.trim(),
+      role,
+      approval_status,
+    } as any);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{desc}</DialogDescription>
+        </DialogHeader>
+
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {error}
+          </div>
+        )}
+
+        <div className="grid gap-4">
+          {/* Email + Password نداریم چون ادمین invite می‌فرسته */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Email *</Label>
+              <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Phone *</Label>
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Business Name *</Label>
+            <Input value={business_name} onChange={(e) => setBusinessName(e.target.value)} />
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>CIF *</Label>
+              <Input value={cif} onChange={(e) => setCif(e.target.value)} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tax ID</Label>
+              <Input value={tax_id} onChange={(e) => setTaxId(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Address *</Label>
+            <Input value={address} onChange={(e) => setAddress(e.target.value)} />
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>City *</Label>
+              <Input value={city} onChange={(e) => setCity(e.target.value)} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Postal Code</Label>
+              <Input value={postal_code} onChange={(e) => setPostalCode(e.target.value)} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Country *</Label>
+              <Input value={country} onChange={(e) => setCountry(e.target.value)} />
+            </div>
+          </div>
+
+          {/* اگر نقش/وضعیت را هم می‌خواهی */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <Input value={role} onChange={(e) => setRole(e.target.value)} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Approval status</Label>
+              <Input
+                value={approval_status}
+                onChange={(e) => setApprovalStatus(e.target.value as ApprovalStatus)}
+              />
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={!canSubmit}>
+            {mode === "create" ? "Create & send email" : "Save changes"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
