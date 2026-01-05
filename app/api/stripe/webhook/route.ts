@@ -54,27 +54,30 @@ export async function POST(req: NextRequest) {
   const stripePaymentIntentId = (session.payment_intent as string | null) ?? null;
 
   // ✅ Update order
-  const { data: updated, error } = await supabaseAdmin
-    .from("orders")
-    .update({
-      payment_status: "paid",
-      status: "processing",
-      stripe_session_id: stripeSessionId,
-      stripe_payment_intent_id: stripePaymentIntentId,
-    })
-    .eq("id", orderId)
-    .select("id, payment_status");
+ // ✅ Update order
+const { data: updated, error } = await supabaseAdmin
+  .from("orders")
+  .update({
+    payment_status: "paid",
+    status: "processing",
+    stripe_session_id: stripeSessionId,
+    stripe_payment_intent_id: stripePaymentIntentId,
+  })
+  .eq("id", orderId)
+  .select("id, payment_status, stripe_session_id, stripe_payment_intent_id");
 
-  if (error) {
-    console.error("❌ Failed to update order:", error);
-    return new Response("Failed to update order", { status: 500 });
-  }
+if (error) {
+  console.error("❌ Failed to update order:", error);
+  return new Response("Failed to update order", { status: 500 });
+}
 
-  // ✅ اگر هیچ ردیفی آپدیت نشد یعنی orderId اشتباه است یا order ساخته نشده
-  if (!updated || updated.length === 0) {
-    console.error("❌ No order updated. orderId not found:", orderId);
-    return new Response("Order not found for orderId", { status: 404 });
-  }
+console.log("✅ UPDATED ROW:", updated);
+
+if (!updated || updated.length === 0) {
+  console.error("❌ No order updated. orderId not found:", orderId);
+  return new Response("Order not found for orderId", { status: 404 });
+}
+
 
   console.log("✅ Order marked as paid:", orderId, "payment_status:", updated[0]?.payment_status);
 
