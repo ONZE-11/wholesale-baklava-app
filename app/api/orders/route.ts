@@ -12,6 +12,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
+    // ✅ پروفایل public.users را پیدا کن تا user_id سفارش‌ها یکدست باشد
+    const { data: profile, error: profileErr } = await supabase
+      .from("users")
+      .select("id")
+      .eq("auth_id", session.user.id)
+      .single();
+
+    if (profileErr || !profile?.id) {
+      return NextResponse.json(
+        { success: false, error: "User profile not found" },
+        { status: 400 }
+      );
+    }
+
     const body = await req.json();
 
     if (!body.items || !Array.isArray(body.items) || body.items.length === 0) {
@@ -21,7 +35,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ✅ ارسال فیزیکی: آدرس باید وجود داشته باشد
     if (!body.shippingAddress || typeof body.shippingAddress !== "object") {
       return NextResponse.json(
         { success: false, error: "Shipping address is required" },
@@ -37,28 +50,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ✅ محاسبه‌ی subtotal/tax/total با cents (دقیق)
     const calcItems = body.items.map((item: any) => ({
       price: Number(item.price),
       quantity: Number(item.quantity),
     }));
 
     const totals = calcTotalsFromItems(calcItems);
-    // totals = { subtotal, tax, total, subtotalCents, taxCents, totalCents }
 
     const { data: orderData, error: orderError } = await supabase
       .from("orders")
       .insert([
         {
-          user_id: session.user.id,
+          // ✅ مهم: user_id یکدست با Stripe (public.users.id)
+          user_id: profile.id,
+
           payment_method: body.paymentMethod,
           notes: body.notes || null,
           shipping_address: body.shippingAddress,
 
-          // 👇 این‌ها رو ذخیره کن
-          tax_rate: IVA_RATE,        // 0.10  (پیشنهاد من)
-          tax_amount: totals.tax,    // مبلغ مالیات
-          total_amount: totals.total, // مبلغ نهایی (subtotal + tax)
+          tax_rate: IVA_RATE,
+          tax_amount: totals.tax,
+          total_amount: totals.total,
 
           status: "pending",
           payment_status: "unpaid",
@@ -81,13 +93,12 @@ export async function POST(req: NextRequest) {
       product_id: item.productId,
       quantity: Number(item.quantity),
       unit_price: Number(item.price),
-      subtotal: Number(item.price) * Number(item.quantity), // بدون IVA، درست همینه
+      subtotal: Number(item.price) * Number(item.quantity),
     }));
 
     const { error: itemsError } = await supabase.from("order_items").insert(itemsToInsert);
 
     if (itemsError) {
-      // ✅ جلوگیری از سفارش ناقص
       await supabase.from("orders").delete().eq("id", orderId);
 
       return NextResponse.json(
@@ -103,7 +114,7 @@ export async function POST(req: NextRequest) {
         subtotal: totals.subtotal,
         tax: totals.tax,
         total: totals.total,
-        taxRate: IVA_RATE, // یا IVA_PERCENT اگر درصدی نمایش می‌دی
+        taxRate: IVA_RATE,
       },
     });
   } catch (err: any) {
