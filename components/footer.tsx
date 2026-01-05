@@ -15,7 +15,7 @@ export function Footer() {
           {/* برند */}
           <div>
             <h3 className="text-xl font-bold text-primary mb-4">
-              aklavavalencia
+              baklavavalencia
             </h3>
 
             <p className="text-muted-foreground mb-4">
