@@ -13,32 +13,38 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import { CreditCard, Banknote } from "lucide-react";
 
-import { useCart } from "@/lib/cart-context";
+import { CartItem, useCart } from "@/lib/cart-context";
 import { useToast } from "@/hooks/use-toast";
 import { createSupabaseClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import { calcTotalsFromItems, IVA_PERCENT } from "@/lib/tax";
 
+
+
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, totalPrice, clearCart } = useCart();
 
-  const totals = useMemo(() => {
-    return calcTotalsFromItems(
-      (items ?? []).map((it) => ({
-        price: Number(it.price),
-        quantity: Number(it.quantity),
-      }))
-    );
-  }, [items]);
+const totals = useMemo(() => {
+  return calcTotalsFromItems(
+    (items ?? []).map((it) => ({
+      price: Number(it.price),
+      quantity: Number(it.quantity),
+    }))
+  );
+}, [items]);
 
+
+  
   const { toast } = useToast();
   const { lang } = useLanguage();
 
   const [user, setUser] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "cash">("stripe");
+  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "cash">(
+    "stripe"
+  );
   const [orderPlaced, setOrderPlaced] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -122,6 +128,7 @@ export default function CheckoutPage() {
         return;
       }
 
+      // ✅ ساخت آدرس به شکل آبجکت (برای ذخیره داخل orders.shipping_address jsonb)
       const shippingAddressObj = {
         full_name: formData.fullName,
         phone: formData.phone,
@@ -131,6 +138,7 @@ export default function CheckoutPage() {
         country: formData.country,
       };
 
+      // ✅ ولیدیشن ساده برای ارسال فیزیکی
       if (
         !shippingAddressObj.full_name ||
         !shippingAddressObj.phone ||
@@ -141,24 +149,35 @@ export default function CheckoutPage() {
       ) {
         throw new Error("Shipping address is required");
       }
-
-      // ✅ Stripe payment (NO order created before payment)
       if (paymentMethod === "stripe") {
-        // ✅ مهم: باید پروفایل از جدول public.users لود شده باشد
-        if (!user?.id) {
-          throw new Error("User profile not loaded");
+        // 1) ساخت سفارش در دیتابیس
+        const orderRes = await fetch("/api/orders", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            items,
+            shippingAddress: shippingAddressObj,
+            paymentMethod: "stripe",
+            notes: formData.notes,
+          }),
+        });
+
+        const orderJson = await orderRes.json();
+
+        if (!orderRes.ok || !orderJson?.orderId) {
+          throw new Error(orderJson?.error || "Failed to create order");
         }
 
+        const orderId = orderJson.orderId;
+
+        // 2) ساخت سشن Stripe
         const res = await fetch("/api/stripe/session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             items,
-            shippingAddress: shippingAddressObj,
-            notes: formData.notes,
-
-            // ✅ این باید id جدول public.users باشد، نه auth.users
-            userId: user.id,
+            orderId,
           }),
         });
 
@@ -168,18 +187,20 @@ export default function CheckoutPage() {
           throw new Error(data?.error || t("checkout.stripe_error", lang));
         }
 
+        localStorage.setItem("lastOrderId", orderId); // اختیاری
+
         window.location.href = data.url;
         return;
       }
 
-      // ✅ Cash on Delivery (order created immediately)
+      // Cash on Delivery
       const res = await fetch("/api/orders", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           items,
-          shippingAddress: shippingAddressObj,
+          shippingAddress: shippingAddressObj, // ✅ آبجکت
           paymentMethod: "cash",
           notes: formData.notes,
         }),
@@ -216,11 +237,17 @@ export default function CheckoutPage() {
       <Navbar />
       <main className="flex-1 py-12">
         <div className="container mx-auto px-4">
-          <h1 className="text-3xl font-bold mb-8">{t("checkout.title", lang)}</h1>
+          <h1 className="text-3xl font-bold mb-8">
+            {t("checkout.title", lang)}
+          </h1>
 
-          <form onSubmit={handlePlaceOrder} className="grid lg:grid-cols-3 gap-8">
-            {/* LEFT */}
+          <form
+            onSubmit={handlePlaceOrder}
+            className="grid lg:grid-cols-3 gap-8"
+          >
+            {/* LEFT: Shipping & Payment */}
             <div className="lg:col-span-2 space-y-6">
+              {/* Shipping Info Card */}
               <Card>
                 <CardHeader>
                   <CardTitle>{t("checkout.shipping_info", lang)}</CardTitle>
@@ -243,7 +270,10 @@ export default function CheckoutPage() {
                       required
                       value={formData.shippingAddress}
                       onChange={(e) =>
-                        setFormData({ ...formData, shippingAddress: e.target.value })
+                        setFormData({
+                          ...formData,
+                          shippingAddress: e.target.value,
+                        })
                       }
                     />
                   </div>
@@ -254,7 +284,9 @@ export default function CheckoutPage() {
                       <Input
                         required
                         value={formData.city}
-                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, city: e.target.value })
+                        }
                       />
                     </div>
 
@@ -263,19 +295,27 @@ export default function CheckoutPage() {
                       <Input
                         required
                         value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, phone: e.target.value })
+                        }
                       />
                     </div>
                   </div>
 
+                  {/* ✅ اضافه شد: Postal code + Country */}
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>{t("checkout.postal_code", lang) || "Postal Code"}</Label>
+                      <Label>
+                        {t("checkout.postal_code", lang) || "Postal Code"}
+                      </Label>
                       <Input
                         required
                         value={formData.postalCode}
                         onChange={(e) =>
-                          setFormData({ ...formData, postalCode: e.target.value })
+                          setFormData({
+                            ...formData,
+                            postalCode: e.target.value,
+                          })
                         }
                       />
                     </div>
@@ -285,7 +325,9 @@ export default function CheckoutPage() {
                       <Input
                         required
                         value={formData.country}
-                        onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({ ...formData, country: e.target.value })
+                        }
                       />
                     </div>
                   </div>
@@ -295,12 +337,15 @@ export default function CheckoutPage() {
                     <Textarea
                       rows={3}
                       value={formData.notes}
-                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, notes: e.target.value })
+                      }
                     />
                   </div>
                 </CardContent>
               </Card>
 
+              {/* Payment Method Card */}
               <Card>
                 <CardHeader>
                   <CardTitle>{t("checkout.payment_method", lang)}</CardTitle>
@@ -308,12 +353,17 @@ export default function CheckoutPage() {
                 <CardContent>
                   <RadioGroup
                     value={paymentMethod}
-                    onValueChange={(v) => setPaymentMethod(v as "stripe" | "cash")}
+                    onValueChange={(v) =>
+                      setPaymentMethod(v as "stripe" | "cash")
+                    }
                     className="space-y-3"
                   >
                     <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer">
                       <RadioGroupItem value="stripe" id="stripe" />
-                      <Label htmlFor="stripe" className="flex gap-2 items-center">
+                      <Label
+                        htmlFor="stripe"
+                        className="flex gap-2 items-center"
+                      >
                         <CreditCard className="h-4 w-4" />
                         {t("checkout.pay_with_card", lang)}
                       </Label>
@@ -331,7 +381,7 @@ export default function CheckoutPage() {
               </Card>
             </div>
 
-            {/* RIGHT */}
+            {/* RIGHT: Order Summary */}
             <div>
               <Card>
                 <CardHeader>
@@ -339,7 +389,10 @@ export default function CheckoutPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {items.map((item) => (
-                    <div key={item.productId} className="flex justify-between text-sm">
+                    <div
+                      key={item.productId}
+                      className="flex justify-between text-sm"
+                    >
                       <span>
                         {item.name} × {item.quantity}
                       </span>
@@ -347,25 +400,33 @@ export default function CheckoutPage() {
                     </div>
                   ))}
 
-                  <div className="border-t pt-4 space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>Subtotal</span>
-                      <span>€{totals.subtotal.toFixed(2)}</span>
-                    </div>
+               <div className="border-t pt-4 space-y-2 text-sm">
+  <div className="flex justify-between">
+    <span>Subtotal</span>
+    <span>€{totals.subtotal.toFixed(2)}</span>
+  </div>
 
-                    <div className="flex justify-between">
-                      <span>IVA ({IVA_PERCENT}%)</span>
-                      <span>€{totals.tax.toFixed(2)}</span>
-                    </div>
+  <div className="flex justify-between">
+    <span>IVA ({IVA_PERCENT}%)</span>
+    <span>€{totals.tax.toFixed(2)}</span>
+  </div>
 
-                    <div className="flex justify-between text-lg font-bold pt-2">
-                      <span>{t("checkout.total", lang)}</span>
-                      <span className="text-primary">€{totals.total.toFixed(2)}</span>
-                    </div>
-                  </div>
+  <div className="flex justify-between text-lg font-bold pt-2">
+    <span>{t("checkout.total", lang)}</span>
+    <span className="text-primary">€{totals.total.toFixed(2)}</span>
+  </div>
+</div>
 
-                  <Button type="submit" size="lg" className="w-full" disabled={isProcessing}>
-                    {isProcessing ? t("checkout.redirecting", lang) : t("checkout.place_order", lang)}
+
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className="w-full"
+                    disabled={isProcessing}
+                  >
+                    {isProcessing
+                      ? t("checkout.redirecting", lang)
+                      : t("checkout.place_order", lang)}
                   </Button>
                 </CardContent>
               </Card>
@@ -377,3 +438,4 @@ export default function CheckoutPage() {
     </div>
   );
 }
+
