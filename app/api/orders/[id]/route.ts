@@ -8,15 +8,11 @@ export async function GET(
   try {
     const supabase = await createSupabaseServerClient();
 
-    const { data: sessionData, error: sessionError } =
-      await supabase.auth.getSession();
+    // ✅ امن‌تر از getSession()
+    const { data: userData, error: userErr } = await supabase.auth.getUser();
+    const authUser = userData.user;
 
-    if (sessionError) {
-      return NextResponse.json({ error: sessionError.message }, { status: 401 });
-    }
-
-    const session = sessionData.session;
-    if (!session?.user) {
+    if (userErr || !authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -25,14 +21,25 @@ export async function GET(
       return NextResponse.json({ error: "Invalid order id" }, { status: 400 });
     }
 
-    // سفارش فقط برای مالک همان سفارش
+    // ✅ پروفایل public.users (همان چیزی که تو orders.user_id ذخیره می‌کنی)
+    const { data: profile, error: profileErr } = await supabase
+      .from("users")
+      .select("id")
+      .eq("auth_id", authUser.id)
+      .single();
+
+    if (profileErr || !profile?.id) {
+      return NextResponse.json({ error: "User profile not found" }, { status: 400 });
+    }
+
+    // ✅ سفارش فقط برای مالک همان سفارش (با profile.id)
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .select(
-        "id, created_at, status, payment_status, total_amount, user_id, payment_method, notes, shipping_address"
+        "id, created_at, status, payment_status, total_amount, user_id, payment_method, notes, shipping_address, stripe_session_id, stripe_payment_intent_id"
       )
       .eq("id", orderId)
-      .eq("user_id", session.user.id)
+      .eq("user_id", profile.id)
       .maybeSingle();
 
     if (orderError) {
