@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -75,7 +75,11 @@ function formatDate(d: string) {
    Component
 ======================= */
 
-export default function OrderDetailsPage({ params }: { params: { id: string } }) {
+export default function OrderDetailsPage({
+  params,
+}: {
+  params: { id: string };
+}) {
   const { lang } = useLanguage();
   const router = useRouter();
 
@@ -135,7 +139,8 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
 
   const t = (key: string) => {
     const keys = key.split(".");
-    let res: any = translations[lang as keyof typeof translations] || translations.en;
+    let res: any =
+      translations[lang as keyof typeof translations] || translations.en;
     for (const k of keys) res = res?.[k];
     return res ?? key;
   };
@@ -144,41 +149,62 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
     const loadOrder = async () => {
       setLoading(true);
 
-      const userId = await getAuthUserId();
-      if (!userId) {
+      const supabase = createSupabaseClient();
+
+      // ✅ auth user
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (!user || authError) {
         router.replace("/login");
         return;
       }
 
-      const supabase = createSupabaseClient();
+      // ✅ profile id (public.users.id)
+      const { data: profile, error: profileErr } = await supabase
+        .from("users")
+        .select("id")
+        .eq("auth_id", user.id)
+        .single();
+
+      if (profileErr || !profile?.id) {
+        setOrder(null);
+        setLoading(false);
+        return;
+      }
+
       const orderId = params.id;
 
       const { data, error } = await supabase
         .from("orders")
-        .select(`
+        .select(
+          `
+        id,
+        created_at,
+        status,
+        payment_method,
+        payment_status,
+        total_amount,
+        tax_amount,
+        tax_rate,
+        shipping_address,
+        notes,
+        order_items (
           id,
-          created_at,
-          status,
-          payment_method,
-          payment_status,
-          total_amount,
-          tax_amount,
-          tax_rate,
-          shipping_address,
-          notes,
-          order_items (
-            id,
-            quantity,
-            unit_price,
-            subtotal,
-            products (
-              name_en,
-              name_es
-            )
+          quantity,
+          unit_price,
+          subtotal,
+          products (
+            name_en,
+            name_es
           )
-        `)
+        )
+      `
+        )
         .eq("id", orderId)
-        .eq("user_id", userId)
+        .eq("user_id", profile.id) // ✅ اینجا درست شد
         .single();
 
       if (error || !data) {
@@ -191,7 +217,6 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
       setLoading(false);
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     loadOrder();
   }, [params.id, router]);
 
@@ -201,24 +226,39 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
   }, [order]);
 
   const tax = useMemo(() => (order ? n(order.tax_amount ?? 0) : 0), [order]);
-  const total = useMemo(() => (order ? n(order.total_amount ?? (subtotal + tax)) : 0), [order, subtotal, tax]);
+  const total = useMemo(
+    () => (order ? n(order.total_amount ?? subtotal + tax) : 0),
+    [order, subtotal, tax]
+  );
   const taxRatePct = useMemo(() => {
-    const r = order ? n(order.tax_rate ?? 0.10) : 0.10;
+    const r = order ? n(order.tax_rate ?? 0.1) : 0.1;
     return (r * 100).toFixed(0);
   }, [order]);
 
   const getOrderStatusBadge = (status: string) => {
     switch (status) {
       case "delivered":
-        return <Badge className="bg-green-500">{t("order.status.delivered")}</Badge>;
+        return (
+          <Badge className="bg-green-500">{t("order.status.delivered")}</Badge>
+        );
       case "shipped":
-        return <Badge className="bg-blue-500">{t("order.status.shipped")}</Badge>;
+        return (
+          <Badge className="bg-blue-500">{t("order.status.shipped")}</Badge>
+        );
       case "processing":
-        return <Badge className="bg-yellow-500">{t("order.status.processing")}</Badge>;
+        return (
+          <Badge className="bg-yellow-500">
+            {t("order.status.processing")}
+          </Badge>
+        );
       case "pending":
-        return <Badge className="bg-gray-500">{t("order.status.pending")}</Badge>;
+        return (
+          <Badge className="bg-gray-500">{t("order.status.pending")}</Badge>
+        );
       case "cancelled":
-        return <Badge className="bg-red-500">{t("order.status.cancelled")}</Badge>;
+        return (
+          <Badge className="bg-red-500">{t("order.status.cancelled")}</Badge>
+        );
       default:
         return <Badge>{status}</Badge>;
     }
@@ -226,7 +266,9 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
 
   const productName = (p?: Product | null) => {
     if (!p) return "—";
-    return lang === "es" ? (p.name_es ?? p.name_en ?? "—") : (p.name_en ?? p.name_es ?? "—");
+    return lang === "es"
+      ? p.name_es ?? p.name_en ?? "—"
+      : p.name_en ?? p.name_es ?? "—";
   };
 
   if (loading) return <div className="p-8">Loading...</div>;
@@ -272,10 +314,13 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
                         {productName(item.products)}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {t("cart.quantity")}: {n(item.quantity)} × {moneyEUR(item.unit_price)}
+                        {t("cart.quantity")}: {n(item.quantity)} ×{" "}
+                        {moneyEUR(item.unit_price)}
                       </p>
                     </div>
-                    <p className="font-bold text-amber-700">{moneyEUR(item.subtotal)}</p>
+                    <p className="font-bold text-amber-700">
+                      {moneyEUR(item.subtotal)}
+                    </p>
                   </div>
                 ))}
 
@@ -287,7 +332,9 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
                   </div>
 
                   <div className="flex justify-between">
-                    <span>{t("order.tax")} ({taxRatePct}%):</span>
+                    <span>
+                      {t("order.tax")} ({taxRatePct}%):
+                    </span>
                     <span className="font-semibold">{moneyEUR(tax)}</span>
                   </div>
 
@@ -311,7 +358,9 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
                   <p className="text-sm text-muted-foreground">—</p>
                 ) : (
                   <div className="text-sm text-muted-foreground space-y-1">
-                    <div><b className="text-foreground">{addr.full_name}</b></div>
+                    <div>
+                      <b className="text-foreground">{addr.full_name}</b>
+                    </div>
                     <div>{addr.phone}</div>
                     <div>{addr.address}</div>
                     <div>{addr.city}</div>
@@ -328,10 +377,13 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
               </CardHeader>
               <CardContent className="space-y-2">
                 <p className="font-semibold">
-                  {order.payment_method === "stripe" ? t("checkout.stripe") : t("checkout.cash")}
+                  {order.payment_method === "stripe"
+                    ? t("checkout.stripe")
+                    : t("checkout.cash")}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {t("order.payment_status")}: <b className="text-foreground">{order.payment_status}</b>
+                  {t("order.payment_status")}:{" "}
+                  <b className="text-foreground">{order.payment_status}</b>
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {t("order.notes")}: {order.notes || "—"}

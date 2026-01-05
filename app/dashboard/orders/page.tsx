@@ -105,32 +105,49 @@ export default function OrdersPage() {
       data: { user },
       error: authError,
     } = await supabase.auth.getUser();
+
     if (!user || authError) {
       router.replace("/login");
       return;
     }
 
+    // ✅ 1) گرفتن profile.id (public.users.id)
+    const { data: profileData, error: profileErr } = await supabase
+      .from("users")
+      .select("id")
+      .eq("auth_id", user.id)
+      .single();
+
+    if (profileErr || !profileData?.id) {
+      setError("User profile not found");
+      setOrders([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const profileId = profileData.id;
+
     let query = supabase
       .from("orders")
       .select(
         `
-  id,
-  payment_status,
-  total_amount,
-  tax_amount,
-  tax_rate,
-  created_at,
-  order_items (
-    id,
-    quantity,
-    unit_price,
-    subtotal,
-    product_id
-  )
-`
+        id,
+        payment_status,
+        total_amount,
+        tax_amount,
+        tax_rate,
+        created_at,
+        order_items (
+          id,
+          quantity,
+          unit_price,
+          subtotal,
+          product_id
+        )
+      `
       )
-
-      .eq("user_id", user.id)
+      // ✅ 2) فیلتر درست
+      .eq("user_id", profileId)
       .order("created_at", { ascending: false })
       .range((page - 1) * pageSize, page * pageSize - 1);
 
@@ -147,7 +164,8 @@ export default function OrdersPage() {
     }
 
     if (!ordersData || ordersData.length === 0) {
-      setOrders([]);
+      if (reset) setOrders([]);
+      setHasMore(false);
       setIsLoading(false);
       return;
     }
@@ -155,7 +173,7 @@ export default function OrdersPage() {
     const productIds = Array.from(
       new Set(
         ordersData.flatMap((order: any) =>
-          order.order_items.map((item: any) => item.product_id)
+          (order.order_items || []).map((item: any) => item.product_id)
         )
       )
     );
@@ -171,7 +189,7 @@ export default function OrdersPage() {
 
     const normalizedOrders = ordersData.map((order: any) => ({
       ...order,
-      order_items: order.order_items.map((item: any) => ({
+      order_items: (order.order_items || []).map((item: any) => ({
         ...item,
         product: productMap[item.product_id] || null,
       })),

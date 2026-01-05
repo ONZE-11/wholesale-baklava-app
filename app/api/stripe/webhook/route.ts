@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       stripe_payment_intent_id: stripePaymentIntentId,
     })
     .eq("id", orderId)
-    .select("id");
+    .select("id, payment_status");
 
   if (error) {
     console.error("❌ Failed to update order:", error);
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
     return new Response("Order not found for orderId", { status: 404 });
   }
 
-  console.log("✅ Order marked as paid:", orderId);
+  console.log("✅ Order marked as paid:", orderId, "payment_status:", updated[0]?.payment_status);
 
   return NextResponse.json({ received: true });
 }
