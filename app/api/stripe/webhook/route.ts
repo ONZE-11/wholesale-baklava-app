@@ -17,8 +17,6 @@ function getSupabaseAdmin() {
 }
 
 export async function POST(req: NextRequest) {
-  console.log("✅ STRIPE WEBHOOK HIT");
-
   const sig = req.headers.get("stripe-signature");
   if (!sig) return new Response("Missing stripe-signature header", { status: 400 });
 
@@ -35,16 +33,23 @@ export async function POST(req: NextRequest) {
     return new Response(`Webhook Error: ${err?.message ?? "Invalid signature"}`, { status: 400 });
   }
 
-  // فقط برای کاهش نویز
   if (event.type !== "checkout.session.completed") {
     return NextResponse.json({ received: true });
   }
 
   const session = event.data.object as Stripe.Checkout.Session;
 
-  const orderId = session.metadata?.orderId;
+  const orderId =
+    session.metadata?.orderId ||
+    (session.client_reference_id as string | null) ||
+    null;
+
   if (!orderId) {
-    console.error("❌ Missing orderId in session.metadata", session.id);
+    console.error("❌ Missing orderId in metadata and client_reference_id", {
+      sessionId: session.id,
+      client_reference_id: session.client_reference_id,
+      metadata: session.metadata,
+    });
     return new Response("Missing orderId", { status: 400 });
   }
 
@@ -53,33 +58,28 @@ export async function POST(req: NextRequest) {
   const stripeSessionId = session.id;
   const stripePaymentIntentId = (session.payment_intent as string | null) ?? null;
 
-  // ✅ Update order
- // ✅ Update order
-const { data: updated, error } = await supabaseAdmin
-  .from("orders")
-  .update({
-    payment_status: "paid",
-    status: "processing",
-    stripe_session_id: stripeSessionId,
-    stripe_payment_intent_id: stripePaymentIntentId,
-  })
-  .eq("id", orderId)
-  .select("id, payment_status, stripe_session_id, stripe_payment_intent_id");
+  const { data: updated, error } = await supabaseAdmin
+    .from("orders")
+    .update({
+      payment_status: "paid",
+      status: "processing",
+      stripe_session_id: stripeSessionId,
+      stripe_payment_intent_id: stripePaymentIntentId,
+    })
+    .eq("id", orderId)
+    .select("id, payment_status, stripe_session_id, stripe_payment_intent_id");
 
-if (error) {
-  console.error("❌ Failed to update order:", error);
-  return new Response("Failed to update order", { status: 500 });
-}
+  if (error) {
+    console.error("❌ Failed to update order:", error);
+    return new Response("Failed to update order", { status: 500 });
+  }
 
-console.log("✅ UPDATED ROW:", updated);
+  if (!updated || updated.length === 0) {
+    console.error("❌ Order not found for orderId:", orderId, "session:", stripeSessionId);
+    return new Response("Order not found for orderId", { status: 400 });
+  }
 
-if (!updated || updated.length === 0) {
-  console.error("❌ No order updated. orderId not found:", orderId);
-  return new Response("Order not found for orderId", { status: 404 });
-}
-
-
-  console.log("✅ Order marked as paid:", orderId, "payment_status:", updated[0]?.payment_status);
+  console.log("✅ Order marked paid:", updated[0]);
 
   return NextResponse.json({ received: true });
 }

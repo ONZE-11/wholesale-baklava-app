@@ -38,18 +38,15 @@ export async function POST(req: Request) {
     }
 
     const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      payment_method_types: ["card"],
-      line_items,
+  mode: "payment",
+  payment_method_types: ["card"],
+  line_items,
+  client_reference_id: orderId,   // ✅ اضافه شد
+  metadata: { orderId },          // ✅ همینم هست
+  success_url: `${siteUrl}/checkout/success?orderId=${orderId}`,
+  cancel_url: `${siteUrl}/checkout/cancel?orderId=${orderId}`,
+});
 
-      // 👇 خیلی مهم
-      metadata: {
-        orderId,
-      },
-
-      success_url: `${siteUrl}/checkout/success?orderId=${orderId}`,
-      cancel_url: `${siteUrl}/checkout/cancel?orderId=${orderId}`,
-    });
 
     return NextResponse.json({ url: session.url });
   } catch (err: any) {
