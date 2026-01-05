@@ -14,7 +14,8 @@ export default function SuccessPage() {
   const { lang } = useLanguage();
   const { clearCart } = useCart();
 
-  const sessionId = searchParams.get("session_id");
+  const orderId = searchParams.get("orderId");
+  const sessionId = searchParams.get("session_id"); // برای حالت‌های قدیمی/دیباگ
 
   useEffect(() => {
     clearCart();
@@ -32,6 +33,13 @@ export default function SuccessPage() {
           {t("success.message", lang)}
         </p>
 
+        {orderId && (
+          <p className="text-gray-800 font-medium mb-4 break-all">
+            {t("success.order_number", lang)}: {orderId}
+          </p>
+        )}
+
+        {/* اختیاری برای دیباگ */}
         {sessionId && (
           <p className="text-gray-500 text-xs mb-6 break-all">
             Session: {sessionId}
