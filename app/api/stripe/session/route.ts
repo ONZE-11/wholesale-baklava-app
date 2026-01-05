@@ -21,6 +21,7 @@ export async function POST(req: Request) {
       );
     }
 
+    // line_items برای Stripe (نمایش در Checkout)
     const line_items = items.map((item: any) => ({
       price_data: {
         currency: "eur",
@@ -30,18 +31,36 @@ export async function POST(req: Request) {
       quantity: Number(item.quantity),
     }));
 
+    // ✅ این مهمه: برای ساخت order_items در webhook
+    // محصول/تعداد/قیمت رو داخل metadata می‌ذاریم تا بعداً دقیقاً product_id داشته باشیم
+    const itemsForMeta = items.map((it: any) => ({
+      productId: String(it.productId), // UUID محصول در DB
+      quantity: Number(it.quantity),
+      unit_price: Number(it.price), // یورو
+    }));
+
+    const items_json = JSON.stringify(itemsForMeta);
+
+    // Stripe metadata محدودیت حجم داره، اینجا جلوی خرابکاری رو می‌گیریم
+    if (items_json.length > 4500) {
+      return NextResponse.json(
+        { error: "Cart too large to encode in Stripe metadata. Reduce items." },
+        { status: 400 }
+      );
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
       line_items,
 
-      // اگر می‌خوای Stripe خودش آدرس بگیره (بهترین حالت):
       shipping_address_collection: { allowed_countries: ["ES"] },
       phone_number_collection: { enabled: true },
 
       metadata: {
         user_id: userId ?? "",
         notes: typeof notes === "string" ? notes.slice(0, 450) : "",
+        items_json, // ✅ برای webhook
       },
 
       success_url: `${siteUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
@@ -52,7 +71,7 @@ export async function POST(req: Request) {
   } catch (err: any) {
     console.error("Stripe session error:", err);
     return NextResponse.json(
-      { error: err.message || "Failed to create checkout session" },
+      { error: err?.message || "Failed to create checkout session" },
       { status: 500 }
     );
   }
