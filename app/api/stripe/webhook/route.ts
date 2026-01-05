@@ -39,44 +39,33 @@ export async function POST(req: NextRequest) {
 
   const session = event.data.object as Stripe.Checkout.Session;
 
-  const orderId =
-    session.metadata?.orderId ||
-    (session.client_reference_id as string | null) ||
-    null;
-
-  if (!orderId) {
-    console.error("❌ Missing orderId in metadata and client_reference_id", {
-      sessionId: session.id,
-      client_reference_id: session.client_reference_id,
-      metadata: session.metadata,
-    });
-    return new Response("Missing orderId", { status: 400 });
-  }
-
-  const supabaseAdmin = getSupabaseAdmin();
-
   const stripeSessionId = session.id;
   const stripePaymentIntentId = (session.payment_intent as string | null) ?? null;
 
+  const supabaseAdmin = getSupabaseAdmin();
+
+  // ✅ آپدیت را با stripe_session_id انجام بده (محکم‌ترین لینک)
   const { data: updated, error } = await supabaseAdmin
     .from("orders")
     .update({
       payment_status: "paid",
       status: "processing",
-      stripe_session_id: stripeSessionId,
       stripe_payment_intent_id: stripePaymentIntentId,
     })
-    .eq("id", orderId)
+    .eq("stripe_session_id", stripeSessionId)
     .select("id, payment_status, stripe_session_id, stripe_payment_intent_id");
 
   if (error) {
-    console.error("❌ Failed to update order:", error);
+    console.error("❌ Failed to update order by stripe_session_id:", error);
     return new Response("Failed to update order", { status: 500 });
   }
 
   if (!updated || updated.length === 0) {
-    console.error("❌ Order not found for orderId:", orderId, "session:", stripeSessionId);
-    return new Response("Order not found for orderId", { status: 400 });
+    console.error("❌ No order found for stripe_session_id:", stripeSessionId, {
+      metadata: session.metadata,
+      client_reference_id: session.client_reference_id,
+    });
+    return new Response("Order not found for stripe_session_id", { status: 400 });
   }
 
   console.log("✅ Order marked paid:", updated[0]);
