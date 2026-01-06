@@ -1,17 +1,17 @@
-"use client"
+"use client";
 
-import { t } from "@/lib/i18n"
-import { Mail, Phone, MapPin, Instagram, Facebook } from "lucide-react"
-import { useLanguage } from "@/lib/language-context"
+import Link from "next/link";
+import { t } from "@/lib/i18n";
+import { Mail, Phone, MapPin, Instagram, Facebook } from "lucide-react";
+import { useLanguage } from "@/lib/language-context";
 
 export function Footer() {
-  const { lang } = useLanguage()
+  const { lang } = useLanguage();
 
   return (
     <footer className="bg-card border-t mt-20">
       <div className="container mx-auto px-4 py-12">
         <div className="grid md:grid-cols-3 gap-8">
-
           {/* برند */}
           <div>
             <h3 className="text-xl font-bold text-primary mb-4">
@@ -65,9 +65,7 @@ export function Footer() {
 
           {/* تماس */}
           <div>
-            <h4 className="font-semibold mb-4">
-              {t("nav.contact", lang)}
-            </h4>
+            <h4 className="font-semibold mb-4">{t("nav.contact", lang)}</h4>
 
             <div className="space-y-3 text-sm">
               <div className="flex items-center gap-2">
@@ -82,10 +80,7 @@ export function Footer() {
 
               <div className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-primary" />
-                <a
-                  href="tel:+34601080799"
-                  className="hover:text-primary"
-                >
+                <a href="tel:+34601080799" className="hover:text-primary">
                   +34 601 080 799
                 </a>
               </div>
@@ -107,36 +102,37 @@ export function Footer() {
             </h4>
 
             <div className="space-y-2 text-sm">
-              <a href="/" className="block hover:text-primary">
+              <Link href="/" className="block hover:text-primary">
                 {t("nav.home", lang)}
-              </a>
+              </Link>
 
-              <a href="/about" className="block hover:text-primary">
+              <Link href="/about" className="block hover:text-primary">
                 {lang === "es" ? "Sobre Nosotros" : "About Us"}
-              </a>
+              </Link>
 
-              <a href="/products" className="block hover:text-primary">
+              <Link href="/products" className="block hover:text-primary">
                 {t("nav.products", lang)}
-              </a>
+              </Link>
 
-              <a href="/faq" className="block hover:text-primary">
+              <Link href="/faq" className="block hover:text-primary">
                 {t("nav.faq", lang)}
-              </a>
+              </Link>
 
-              <a href="/contact" className="block hover:text-primary">
+              <Link href="/contact" className="block hover:text-primary">
                 {t("nav.contact", lang)}
-              </a>
+              </Link>
 
-              <a href="/terms" className="block hover:text-primary">
-                {lang === "es" ? "Términos y Condiciones" : "Terms & Conditions"}
-              </a>
+              <Link href="/terms" className="block hover:text-primary">
+                {lang === "es"
+                  ? "Términos y Condiciones"
+                  : "Terms & Conditions"}
+              </Link>
 
-              <a href="/privacy" className="block hover:text-primary">
+              <Link href="/privacy" className="block hover:text-primary">
                 {lang === "es" ? "Política de Privacidad" : "Privacy Policy"}
-              </a>
+              </Link>
             </div>
           </div>
-
         </div>
 
         <div className="border-t mt-8 pt-8 text-center text-sm text-muted-foreground">
@@ -147,5 +143,5 @@ export function Footer() {
         </div>
       </div>
     </footer>
-  )
+  );
 }
