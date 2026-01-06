@@ -7,14 +7,16 @@ import "./globals.css";
 import { CartProvider } from "@/lib/cart-context";
 import { LanguageProvider } from "@/lib/language-context";
 import { WhatsAppButton } from "@/components/whatsapp-button";
+import { Navbar } from "@/components/navbar";
+import { Footer } from "@/components/footer";
 
-
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const geist = Geist({ subsets: ["latin"] });
+const geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "valenciabaklava - Premium Wholesale Baklava",
-  description: "Premium wholesale baklava from Valencia, Spain. Authentic Mediterranean sweetness for your business.",
+  description:
+    "Premium wholesale baklava from Valencia, Spain. Authentic Mediterranean sweetness for your business.",
   generator: "v0.app",
   icons: {
     icon: [
@@ -40,10 +42,20 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className="font-sans antialiased">
+      <body className={`${geist.className} antialiased`}>
         <LanguageProvider>
           <CartProvider>
-            {children}
+            <div className="min-h-screen flex flex-col">
+              {/* هدر ثابت */}
+              <Navbar />
+
+              {/* محتوای صفحه */}
+              <main className="flex-1">{children}</main>
+
+              {/* فوتر ثابت */}
+              <Footer />
+            </div>
+
             <WhatsAppButton />
             <Analytics />
           </CartProvider>

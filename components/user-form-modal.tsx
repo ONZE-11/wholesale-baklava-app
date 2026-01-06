@@ -52,6 +52,7 @@ export function UserFormModal({ isOpen, mode, user, onClose, onSubmit }: Props) 
       ? "Create a user and send a set-password email."
       : "Update user business profile details.";
 
+  // ✅ sync on open
   useEffect(() => {
     if (!isOpen) return;
 
@@ -118,13 +119,14 @@ export function UserFormModal({ isOpen, mode, user, onClose, onSubmit }: Props) 
         className="
           w-[calc(100vw-24px)]
           sm:max-w-2xl
-          max-h-[85vh]
+          max-h-[90dvh]
           p-0
           overflow-hidden
+          flex flex-col
         "
       >
         {/* Header */}
-        <div className="px-5 sm:px-6 py-4 border-b bg-white">
+        <div className="px-5 sm:px-6 py-4 border-b bg-white shrink-0">
           <DialogHeader>
             <DialogTitle className="text-lg">{title}</DialogTitle>
             <DialogDescription>{desc}</DialogDescription>
@@ -132,14 +134,14 @@ export function UserFormModal({ isOpen, mode, user, onClose, onSubmit }: Props) 
         </div>
 
         {/* Body (scrollable) */}
-        <div className="px-5 sm:px-6 py-4 overflow-y-auto max-h-[calc(85vh-140px)]">
+        <div className="px-5 sm:px-6 py-4 overflow-y-auto flex-1">
           {error && (
             <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
               {error}
             </div>
           )}
 
-          <div className="grid gap-4">
+          <div className="grid gap-4 pb-2">
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Email *</Label>
@@ -220,13 +222,13 @@ export function UserFormModal({ isOpen, mode, user, onClose, onSubmit }: Props) 
           </div>
         </div>
 
-        {/* Footer (sticky-ish) */}
-        <div className="px-5 sm:px-6 py-4 border-t bg-white">
-          <DialogFooter className="gap-2 sm:gap-2">
-            <Button variant="outline" onClick={onClose}>
+        {/* Footer (always visible) */}
+        <div className="px-5 sm:px-6 py-4 border-t bg-white shrink-0 sticky bottom-0">
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-2">
+            <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={!canSubmit}>
+            <Button onClick={handleSubmit} disabled={!canSubmit} className="w-full sm:w-auto">
               {mode === "create" ? "Create & send email" : "Save changes"}
             </Button>
           </DialogFooter>

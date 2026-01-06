@@ -1,7 +1,5 @@
 "use client";
 
-import { Navbar } from "@/components/navbar";
-import { Footer } from "@/components/footer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,8 +17,6 @@ import Image from "next/image";
 import { t } from "@/lib/i18n";
 import { useLanguage } from "@/lib/language-context";
 import { useAuthMe } from "@/lib/use-auth-me";
-
-
 
 export default function AboutPage() {
   const { lang } = useLanguage();
@@ -97,9 +93,7 @@ export default function AboutPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-
+    <>
       {/* Hero Section */}
       <section className="relative py-20 lg:py-32 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-amber-100 via-yellow-50 to-orange-100" />
@@ -127,7 +121,12 @@ export default function AboutPage() {
         <div className="container mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="relative h-[400px] lg:h-[500px] rounded-2xl overflow-hidden shadow-2xl">
-              <Image src="/premium-baklava-dessert-close-up-honey-golden.jpg" alt="Our Mission" fill className="object-cover" />
+              <Image
+                src="/premium-baklava-dessert-close-up-honey-golden.jpg"
+                alt="Our Mission"
+                fill
+                className="object-cover"
+              />
             </div>
             <div className="animate-in fade-in slide-in-from-right duration-700">
               <h2 className="text-4xl lg:text-5xl font-bold mb-6 text-balance">
@@ -139,19 +138,27 @@ export default function AboutPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center p-4 bg-muted/50 rounded-lg">
                   <div className="text-3xl font-bold text-primary mb-1">20+</div>
-                  <div className="text-sm text-muted-foreground">{lang === "es" ? "Años" : "Years"}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {lang === "es" ? "Años" : "Years"}
+                  </div>
                 </div>
                 <div className="text-center p-4 bg-muted/50 rounded-lg">
                   <div className="text-3xl font-bold text-primary mb-1">500+</div>
-                  <div className="text-sm text-muted-foreground">{lang === "es" ? "Clientes" : "Clients"}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {lang === "es" ? "Clientes" : "Clients"}
+                  </div>
                 </div>
                 <div className="text-center p-4 bg-muted/50 rounded-lg">
                   <div className="text-3xl font-bold text-primary mb-1">50+</div>
-                  <div className="text-sm text-muted-foreground">{lang === "es" ? "Productos" : "Products"}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {lang === "es" ? "Productos" : "Products"}
+                  </div>
                 </div>
                 <div className="text-center p-4 bg-muted/50 rounded-lg">
                   <div className="text-3xl font-bold text-primary mb-1">15</div>
-                  <div className="text-sm text-muted-foreground">{lang === "es" ? "Países" : "Countries"}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {lang === "es" ? "Países" : "Countries"}
+                  </div>
                 </div>
               </div>
             </div>
@@ -163,7 +170,9 @@ export default function AboutPage() {
       <section className="py-20 bg-gradient-to-b from-background to-muted/30">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-4xl lg:text-5xl font-bold mb-4 text-balance">{t("about.values.title", lang)}</h2>
+            <h2 className="text-4xl lg:text-5xl font-bold mb-4 text-balance">
+              {t("about.values.title", lang)}
+            </h2>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -183,7 +192,9 @@ export default function AboutPage() {
                   <Heart className="h-8 w-8 text-primary-foreground" />
                 </div>
                 <h3 className="text-xl font-bold mb-2">{t("about.values.authenticity", lang)}</h3>
-                <p className="text-muted-foreground text-sm">{t("about.values.authenticity.desc", lang)}</p>
+                <p className="text-muted-foreground text-sm">
+                  {t("about.values.authenticity.desc", lang)}
+                </p>
               </CardContent>
             </Card>
 
@@ -203,7 +214,9 @@ export default function AboutPage() {
                   <Leaf className="h-8 w-8 text-primary-foreground" />
                 </div>
                 <h3 className="text-xl font-bold mb-2">{t("about.values.sustainability", lang)}</h3>
-                <p className="text-muted-foreground text-sm">{t("about.values.sustainability.desc", lang)}</p>
+                <p className="text-muted-foreground text-sm">
+                  {t("about.values.sustainability.desc", lang)}
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -214,7 +227,9 @@ export default function AboutPage() {
       <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-4xl lg:text-5xl font-bold mb-4 text-balance">{t("about.why.title", lang)}</h2>
+            <h2 className="text-4xl lg:text-5xl font-bold mb-4 text-balance">
+              {t("about.why.title", lang)}
+            </h2>
           </div>
 
           <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
@@ -277,8 +292,6 @@ export default function AboutPage() {
           </div>
         </div>
       </section>
-
-      <Footer />
-    </div>
+    </>
   );
 }

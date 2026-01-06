@@ -2,8 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Navbar } from "@/components/navbar";
-import { Footer } from "@/components/footer";
 import { Award, Package, Truck, ChevronRight, Star, Shield } from "lucide-react";
 import Link from "next/link";
 import { useLanguage } from "@/lib/language-context";
@@ -116,7 +114,6 @@ export default function HomePage() {
       );
     }
 
-    // pending یا هر وضعیت دیگر
     return (
       <>
         <p className="text-xl lg:text-2xl mb-10 text-primary-foreground/90 max-w-2xl mx-auto text-pretty leading-relaxed">
@@ -140,9 +137,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-
+    <>
       <section className="relative py-20 lg:py-32 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-amber-100 via-yellow-50 to-orange-100" />
         <div
@@ -269,7 +264,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ✅ CTA Section Fix */}
       <section className="relative py-24 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary" />
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzR2LTRoLTJ2NGgtNHYyaDR2NGgydi00aDR2LTJoLTR6bTAtMzBWMGgtMnY0aC00djJoNHY0aDJWNmg0VjRoLTR6TTYgMzR2LTRINHY0SDB2Mmg0djRoMnYtNGg0di0ySDZ6TTYgNFYwSDR2NEgwdjJoNHY0aDJWNmg0VjRINnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-20" />
@@ -284,8 +278,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      <Footer />
-    </div>
+    </>
   );
 }

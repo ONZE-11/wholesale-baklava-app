@@ -72,14 +72,20 @@ export function Footer() {
             <div className="space-y-3 text-sm">
               <div className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-primary" />
-                <a href="mailto:mairesmaster@gmail.com" className="hover:text-primary">
+                <a
+                  href="mailto:mairesmaster@gmail.com"
+                  className="hover:text-primary"
+                >
                   mairesmaster@gmail.com
                 </a>
               </div>
 
               <div className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-primary" />
-                <a href="tel:+34601080799" className="hover:text-primary">
+                <a
+                  href="tel:+34601080799"
+                  className="hover:text-primary"
+                >
                   +34 601 080 799
                 </a>
               </div>
@@ -104,18 +110,27 @@ export function Footer() {
               <a href="/" className="block hover:text-primary">
                 {t("nav.home", lang)}
               </a>
+
+              <a href="/about" className="block hover:text-primary">
+                {lang === "es" ? "Sobre Nosotros" : "About Us"}
+              </a>
+
               <a href="/products" className="block hover:text-primary">
                 {t("nav.products", lang)}
               </a>
+
               <a href="/faq" className="block hover:text-primary">
                 {t("nav.faq", lang)}
               </a>
+
               <a href="/contact" className="block hover:text-primary">
                 {t("nav.contact", lang)}
               </a>
+
               <a href="/terms" className="block hover:text-primary">
                 {lang === "es" ? "Términos y Condiciones" : "Terms & Conditions"}
               </a>
+
               <a href="/privacy" className="block hover:text-primary">
                 {lang === "es" ? "Política de Privacidad" : "Privacy Policy"}
               </a>
@@ -126,7 +141,9 @@ export function Footer() {
 
         <div className="border-t mt-8 pt-8 text-center text-sm text-muted-foreground">
           © 2025 baklavavalencia.{" "}
-          {lang === "es" ? "Todos los derechos reservados." : "All rights reserved."}
+          {lang === "es"
+            ? "Todos los derechos reservados."
+            : "All rights reserved."}
         </div>
       </div>
     </footer>
