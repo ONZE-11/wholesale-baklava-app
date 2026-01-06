@@ -46,14 +46,8 @@ export default function RootLayout({
         <LanguageProvider>
           <CartProvider>
             <div className="min-h-screen flex flex-col">
-              {/* هدر ثابت */}
-              <Navbar />
-
               {/* محتوای صفحه */}
               <main className="flex-1">{children}</main>
-
-              {/* فوتر ثابت */}
-              <Footer />
             </div>
 
             <WhatsAppButton />
