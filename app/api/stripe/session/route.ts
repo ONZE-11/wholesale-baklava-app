@@ -26,17 +26,70 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
 
-    // ✅ قیمت‌ها از DB (امنیت)
-    const supabase = createSupabaseServerClient();
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+    if (!siteUrl) {
+      return NextResponse.json(
+        { error: "Missing NEXT_PUBLIC_SITE_URL" },
+        { status: 500 }
+      );
+    }
 
+    // ✅ Supabase Server Client (با کوکی کاربر)
+    const supabase = await createSupabaseServerClient();
+
+    // ✅ کاربر باید لاگین باشد
+    const { data: userData, error: userErr } = await supabase.auth.getUser();
+    const authUser = userData.user;
+    if (userErr || !authUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // ✅ پروفایل public.users.id برای یکدستی با orders.user_id
+    const { data: profile, error: profileErr } = await supabase
+      .from("users")
+      .select("id")
+      .eq("auth_id", authUser.id)
+      .single();
+
+    if (profileErr || !profile?.id) {
+      return NextResponse.json(
+        { error: "User profile not found" },
+        { status: 400 }
+      );
+    }
+
+    // ✅ امنیت: سفارش باید مال همین کاربر باشد
+    const { data: order, error: orderErr } = await supabase
+      .from("orders")
+      .select("id, user_id, payment_method, payment_status, status")
+      .eq("id", orderId)
+      .eq("user_id", profile.id)
+      .maybeSingle();
+
+    if (orderErr) {
+      return NextResponse.json({ error: orderErr.message }, { status: 400 });
+    }
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    // ✅ اگر سفارش قبلا paid شده، دوباره session نساز
+    if (order.payment_status === "paid") {
+      return NextResponse.json(
+        { error: "Order already paid" },
+        { status: 400 }
+      );
+    }
+
+    // ✅ قیمت‌ها فقط از DB (امنیت)
     const productIds = items.map((x) => x.productId);
 
-    const { data: products, error } = await supabase
+    const { data: products, error: prodErr } = await supabase
       .from("products")
       .select("id, price")
       .in("id", productIds);
 
-    if (error || !products) {
+    if (prodErr || !products) {
       return NextResponse.json(
         { error: "Failed to load products" },
         { status: 500 }
@@ -46,7 +99,6 @@ export async function POST(req: Request) {
     const priceMap = new Map<string, number>();
     for (const p of products) priceMap.set(String(p.id), Number(p.price));
 
-    // ✅ subtotal/tax/total از DB-price
     const normalized = items.map((it) => {
       const price = priceMap.get(String(it.productId));
       if (!price) throw new Error(`Product not found: ${it.productId}`);
@@ -64,7 +116,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid tax" }, { status: 400 });
     }
 
-    // ✅ سشن Stripe: پرداخت = subtotal + IVA
+    // ✅ ساخت Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       currency: "eur",
@@ -96,9 +148,30 @@ export async function POST(req: Request) {
         tax: totals.tax.toFixed(2),
         total: totals.total.toFixed(2),
       },
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/checkout/success?orderId=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/checkout/cancel?orderId=${orderId}`,
+      success_url: `${siteUrl}/checkout/success?orderId=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${siteUrl}/checkout/cancel?orderId=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
     });
+
+    // ✅ خیلی مهم: ذخیره stripe_session_id روی سفارش
+    // (این باعث می‌شود webhook با stripe_session_id راحت match کند)
+    const { error: updErr } = await supabase
+      .from("orders")
+      .update({
+        stripe_session_id: session.id,
+        // اختیاری ولی توصیه می‌شود:
+        status: "pending_payment",
+        payment_status: "unpaid",
+      })
+      .eq("id", orderId)
+      .eq("user_id", profile.id);
+
+    if (updErr) {
+      // اگر اینجا fail شود، پرداخت انجام می‌شود ولی ما لینک match نداریم => دردسر
+      return NextResponse.json(
+        { error: "Failed to attach stripe session to order" },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({ url: session.url });
   } catch (e: any) {

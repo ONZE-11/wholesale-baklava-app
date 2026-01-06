@@ -17,8 +17,6 @@ function getSupabaseAdmin() {
 }
 
 export async function POST(req: NextRequest) {
-  console.log("✅ STRIPE WEBHOOK HIT");
-
   const sig = req.headers.get("stripe-signature");
   if (!sig) return new Response("Missing stripe-signature header", { status: 400 });
 
@@ -35,81 +33,76 @@ export async function POST(req: NextRequest) {
     return new Response(`Webhook Error: ${err?.message ?? "Invalid signature"}`, { status: 400 });
   }
 
-  // فقط برای کاهش نویز
-  if (event.type !== "checkout.session.completed") {
-    return NextResponse.json({ received: true });
-  }
-
-  const session = event.data.object as Stripe.Checkout.Session;
-
-  const stripeSessionId = session.id;
-  const stripePaymentIntentId = (session.payment_intent as string | null) ?? null;
-  const orderIdFromMeta = session.metadata?.orderId || null;
-
-  console.log("✅ checkout.session.completed", {
-    stripeSessionId,
-    stripePaymentIntentId,
-    orderIdFromMeta,
-  });
-
   const supabaseAdmin = getSupabaseAdmin();
 
-  // 1) تلاش اصلی: match با stripe_session_id (مطمئن‌ترین)
-  let updatedRows: any[] | null = null;
-
-  {
+  // ✅ helper برای update با session id
+  async function updateBySessionId(
+    stripeSessionId: string,
+    patch: Record<string, any>
+  ) {
     const { data, error } = await supabaseAdmin
       .from("orders")
-      .update({
-        payment_status: "paid",
-        status: "processing",
-        stripe_payment_intent_id: stripePaymentIntentId,
-      })
+      .update(patch)
       .eq("stripe_session_id", stripeSessionId)
-      .select("id, payment_status, stripe_session_id, stripe_payment_intent_id");
+      .select("id, payment_status, status, stripe_session_id, stripe_payment_intent_id");
 
-    if (error) {
-      console.error("❌ Failed to update by stripe_session_id:", error);
-      return new Response("DB update failed", { status: 500 });
-    }
-
-    updatedRows = data ?? [];
+    if (error) throw error;
+    return data ?? [];
   }
 
-  // 2) اگر پیدا نشد: fallback با orderId (برای سازگاری با نسخه‌های قبلی)
-  if ((!updatedRows || updatedRows.length === 0) && orderIdFromMeta) {
-    console.warn("⚠️ No order matched stripe_session_id. Falling back to metadata.orderId:", orderIdFromMeta);
+  try {
+    // ✅ 1) پرداخت موفق
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
 
-    const { data, error } = await supabaseAdmin
-      .from("orders")
-      .update({
+      const stripeSessionId = session.id;
+      const stripePaymentIntentId = (session.payment_intent as string | null) ?? null;
+
+      const updated = await updateBySessionId(stripeSessionId, {
         payment_status: "paid",
         status: "processing",
-        stripe_session_id: stripeSessionId, // اینجا هم ذخیره کن که بعداً همه چی یکدست شود
         stripe_payment_intent_id: stripePaymentIntentId,
-      })
-      .eq("id", orderIdFromMeta)
-      .select("id, payment_status, stripe_session_id, stripe_payment_intent_id");
+      });
 
-    if (error) {
-      console.error("❌ Failed to update by orderId:", error);
-      return new Response("DB update failed (fallback)", { status: 500 });
+      if (!updated.length) {
+        console.error("❌ No order found for stripe_session_id:", stripeSessionId);
+        return new Response("Order not found for this session", { status: 400 });
+      }
+
+      return NextResponse.json({ received: true });
     }
 
-    updatedRows = data ?? [];
+    // ✅ 2) کاربر Cancel کرد یا Session منقضی شد
+    if (event.type === "checkout.session.expired") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const stripeSessionId = session.id;
+
+      // فقط اگر هنوز unpaid است کنسل کن (اگر paid شده باشد دست نزن)
+      await updateBySessionId(stripeSessionId, {
+        payment_status: "cancelled",
+        status: "cancelled",
+      });
+
+      return NextResponse.json({ received: true });
+    }
+
+    // (اختیاری) اگر در آینده async payment داشتی
+    if (event.type === "checkout.session.async_payment_failed") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const stripeSessionId = session.id;
+
+      await updateBySessionId(stripeSessionId, {
+        payment_status: "failed",
+        status: "payment_failed",
+      });
+
+      return NextResponse.json({ received: true });
+    }
+
+    // سایر eventها مهم نیستند
+    return NextResponse.json({ received: true });
+  } catch (e: any) {
+    console.error("❌ Webhook handler error:", e?.message || e);
+    return new Response("Webhook handler failed", { status: 500 });
   }
-
-  // 3) اگر هنوز هیچ ردیفی آپدیت نشد => یعنی واقعاً چیزی پیدا نشده
-  if (!updatedRows || updatedRows.length === 0) {
-    console.error("❌ No order updated. Not found for session/orderId:", {
-      stripeSessionId,
-      orderIdFromMeta,
-    });
-    // 400 که تو Stripe Delivery قرمز بشه و بفهمی مشکل چیه
-    return new Response("Order not found for this session", { status: 400 });
-  }
-
-  console.log("✅ Order marked as paid:", updatedRows[0]);
-
-  return NextResponse.json({ received: true });
 }
