@@ -92,6 +92,22 @@ export default function OrdersPage() {
     },
   };
 
+  function formatOrderDate(dateString?: string | null) {
+    if (!dateString) return "—";
+
+    const d = new Date(dateString);
+    if (Number.isNaN(d.getTime())) return "—";
+
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+
+    // نزدیک به همون فرمت قبلی، فقط برعکس + ساعت
+    return `${y}/${m}/${day} •  ${hh}:${mm}`;
+  }
+
   const t = (key: keyof typeof translations.en) =>
     lang === "es" ? translations.es[key] : translations.en[key];
 
@@ -271,7 +287,7 @@ export default function OrdersPage() {
               <span className="font-medium">{order.payment_status}</span>
             </p>
             <p className="text-muted-foreground">
-              {t("date")}: {new Date(order.created_at).toLocaleDateString()}
+              {t("date")}: {formatOrderDate(order.created_at)}
             </p>
 
             <div className="mt-1">

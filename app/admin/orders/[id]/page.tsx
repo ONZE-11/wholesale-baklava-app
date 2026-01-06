@@ -43,13 +43,21 @@ function shortId(id: string) {
 }
 
 function formatYMD(dateInput: string) {
+  if (!dateInput) return "—";
+
   const d = new Date(dateInput);
   if (Number.isNaN(d.getTime())) return "—";
+
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
-  return `${y}/${m}/${day}`;
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+
+  // هم‌فرم با فایل قبلی + فاصله تمیز
+  return `${y}/${m}/${day}  ,  ${hh}:${mm}`;
 }
+
 
 function badgeClass(kind: "status" | "pay", value: string) {
   // بدون وسواس روی رنگ ها. فقط قابل تشخیص.

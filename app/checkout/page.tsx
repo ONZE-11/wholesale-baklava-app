@@ -20,23 +20,19 @@ import { useLanguage } from "@/lib/language-context";
 import { t } from "@/lib/i18n";
 import { calcTotalsFromItems, IVA_PERCENT } from "@/lib/tax";
 
-
-
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, totalPrice, clearCart } = useCart();
 
-const totals = useMemo(() => {
-  return calcTotalsFromItems(
-    (items ?? []).map((it) => ({
-      price: Number(it.price),
-      quantity: Number(it.quantity),
-    }))
-  );
-}, [items]);
+  const totals = useMemo(() => {
+    return calcTotalsFromItems(
+      (items ?? []).map((it) => ({
+        price: Number(it.price),
+        quantity: Number(it.quantity),
+      }))
+    );
+  }, [items]);
 
-
-  
   const { toast } = useToast();
   const { lang } = useLanguage();
 
@@ -400,23 +396,24 @@ const totals = useMemo(() => {
                     </div>
                   ))}
 
-               <div className="border-t pt-4 space-y-2 text-sm">
-  <div className="flex justify-between">
-    <span>Subtotal</span>
-    <span>€{totals.subtotal.toFixed(2)}</span>
-  </div>
+                  <div className="border-t pt-4 space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Subtotal</span>
+                      <span>€{totals.subtotal.toFixed(2)}</span>
+                    </div>
 
-  <div className="flex justify-between">
-    <span>IVA ({IVA_PERCENT}%)</span>
-    <span>€{totals.tax.toFixed(2)}</span>
-  </div>
+                    <div className="flex justify-between">
+                      <span>IVA ({IVA_PERCENT}%)</span>
+                      <span>€{totals.tax.toFixed(2)}</span>
+                    </div>
 
-  <div className="flex justify-between text-lg font-bold pt-2">
-    <span>{t("checkout.total", lang)}</span>
-    <span className="text-primary">€{totals.total.toFixed(2)}</span>
-  </div>
-</div>
-
+                    <div className="flex justify-between text-lg font-bold pt-2">
+                      <span>{t("checkout.total", lang)}</span>
+                      <span className="text-primary">
+                        €{totals.total.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
 
                   <Button
                     type="submit"
@@ -438,4 +435,3 @@ const totals = useMemo(() => {
     </div>
   );
 }
-

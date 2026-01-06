@@ -4,7 +4,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Lock, Package, Clock, Refrigerator, List } from "lucide-react";
+import {
+  ArrowLeft,
+  Lock,
+  Package,
+  Clock,
+  Refrigerator,
+  List,
+} from "lucide-react";
 
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
@@ -12,12 +19,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
 import { t } from "@/lib/i18n";
 import { createSupabaseClient } from "@/lib/supabase/client";
 import { useCart } from "@/lib/cart-context";
 import { useLanguage } from "@/lib/language-context";
 import { useToast } from "@/hooks/use-toast";
-import { Label } from "recharts";
 
 type Product = {
   id: string | number;
@@ -30,11 +38,6 @@ type Product = {
   [key: string]: any;
 };
 
-function clampInt(value: number, min: number) {
-  if (!Number.isFinite(value)) return min;
-  return Math.max(min, Math.floor(value));
-}
-
 function isProfileIncomplete(p: any) {
   return (
     !p?.business_name ||
@@ -46,11 +49,19 @@ function isProfileIncomplete(p: any) {
   );
 }
 
+function parseQuantity(raw: string, minQ: number) {
+  const cleaned = (raw ?? "").replace(/[^\d]/g, "");
+  const n = cleaned ? Number(cleaned) : NaN;
+  if (!Number.isFinite(n)) return minQ;
+  return Math.max(minQ, Math.floor(n));
+}
+
+type ErrorKey = "not_found" | "load_failed";
+
 export default function ProductDetailsPage() {
   const params = useParams();
   const rawId = params?.id;
 
-  // id can be string | string[] in Next
   const id = useMemo(() => (Array.isArray(rawId) ? rawId[0] : rawId), [rawId]);
 
   const { lang } = useLanguage();
@@ -61,10 +72,12 @@ export default function ProductDetailsPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [isApproved, setIsApproved] = useState(false);
 
-  const [quantity, setQuantity] = useState<number>(0);
+  // ✅ string برای تایپ راحت در موبایل
+  const [quantityInput, setQuantityInput] = useState<string>("");
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // ✅ خطا به صورت کلید، نه متن وابسته به زبان
+  const [errorKey, setErrorKey] = useState<ErrorKey | null>(null);
 
   // fetch: user approval
   useEffect(() => {
@@ -85,7 +98,9 @@ export default function ProductDetailsPage() {
 
         const { data: profile, error: profileError } = await supabase
           .from("users")
-          .select("approval_status, business_name, cif, phone, address, city, country")
+          .select(
+            "approval_status, business_name, cif, phone, address, city, country"
+          )
           .eq("auth_id", user.id)
           .maybeSingle();
 
@@ -97,7 +112,7 @@ export default function ProductDetailsPage() {
           return;
         }
 
-        // اگر خواستی، می‌تونی ناقص بودن پروفایل رو هم اینجا به کاربر نشون بدی
+        // اگر بخوای ناقص بودن پروفایل رو چک کنی:
         // const incomplete = isProfileIncomplete(profile);
 
         setIsApproved(profile?.approval_status === "approved");
@@ -112,13 +127,13 @@ export default function ProductDetailsPage() {
     };
   }, [supabase]);
 
-  // fetch: product
+  // ✅ fetch: product فقط با تغییر id
   useEffect(() => {
     if (!id) return;
 
     let mounted = true;
     setLoading(true);
-    setError(null);
+    setErrorKey(null);
 
     (async () => {
       try {
@@ -132,7 +147,7 @@ export default function ProductDetailsPage() {
 
         if (prodError || !prod) {
           console.error("product fetch error:", prodError);
-          setError(lang === "es" ? "Producto no encontrado." : "Product not found.");
+          setErrorKey("not_found");
           setProduct(null);
           return;
         }
@@ -140,11 +155,11 @@ export default function ProductDetailsPage() {
         setProduct(prod as Product);
 
         const minQ = (prod as Product).min_order_quantity ?? 1;
-        setQuantity(minQ);
+        setQuantityInput(String(minQ));
       } catch (e) {
         console.error("Error fetching product:", e);
         if (mounted) {
-          setError(lang === "es" ? "Error cargando el producto." : "Failed to load product.");
+          setErrorKey("load_failed");
           setProduct(null);
         }
       } finally {
@@ -155,7 +170,7 @@ export default function ProductDetailsPage() {
     return () => {
       mounted = false;
     };
-  }, [id, supabase, lang]);
+  }, [id, supabase]);
 
   const localized = useMemo(() => {
     if (!product) return null;
@@ -180,7 +195,7 @@ export default function ProductDetailsPage() {
   const handleAddToCart = () => {
     if (!product || !localized) return;
 
-    const q = clampInt(quantity, minQuantity);
+    const q = parseQuantity(quantityInput, minQuantity);
 
     addItem({
       productId: String(product.id),
@@ -197,6 +212,14 @@ export default function ProductDetailsPage() {
       description: lang === "es" ? "Producto añadido al carrito." : "Added to cart.",
     });
   };
+
+  const errorText = useMemo(() => {
+    if (!errorKey) return null;
+    if (errorKey === "not_found") {
+      return lang === "es" ? "Producto no encontrado." : "Product not found.";
+    }
+    return lang === "es" ? "Error cargando el producto." : "Failed to load product.";
+  }, [errorKey, lang]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -229,20 +252,20 @@ export default function ProductDetailsPage() {
             </div>
           )}
 
-          {!loading && error && (
+          {!loading && errorText && (
             <Card className="border-destructive/30">
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                {error}
+                {errorText}
               </CardContent>
             </Card>
           )}
 
-          {!loading && !error && product && localized && (
+          {!loading && !errorText && product && localized && (
             <>
               {/* Main */}
               <div className="grid lg:grid-cols-2 gap-8 mb-10">
                 {/* Image */}
-                <div className="relative h-[420px] lg:h-[520px] rounded-xl overflow-hidden border bg-card">
+                <div className="relative h-[320px] sm:h-[420px] lg:h-[520px] rounded-xl overflow-hidden border bg-card">
                   <Image
                     src={product.image_url}
                     alt={localized.name}
@@ -278,35 +301,66 @@ export default function ProductDetailsPage() {
                           {lang === "es" ? "unidades" : "pcs"}
                         </Badge>
 
-                        {/* Quantity */}
-                        <div className="mb-4 flex items-end gap-3">
-                          <div className="flex flex-col gap-2">
-                            <Label className="text-muted-foreground">
-                              {t("cart.quantity", lang)}
-                            </Label>
-                            <Input
-                              type="number"
-                              inputMode="numeric"
-                              min={minQuantity}
-                              value={quantity}
-                              onChange={(e) =>
-                                setQuantity(
-                                  clampInt(Number(e.target.value), minQuantity)
-                                )
-                              }
-                              className="w-28"
-                              disabled={false}
-                            />
-                          </div>
+                        {/* ✅ Quantity - mobile friendly */}
+                        <div className="mb-4">
+                          <Label className="text-muted-foreground">
+                            {t("cart.quantity", lang)}
+                          </Label>
 
-                          <Button
-                            onClick={() => setQuantity(minQuantity)}
-                            variant="ghost"
-                            size="sm"
-                            className="text-muted-foreground hover:text-foreground"
-                          >
-                            {lang === "es" ? "Mínimo" : "Min"}
-                          </Button>
+                          <div className="mt-2 flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-10 w-10 shrink-0"
+                              onClick={() => {
+                                const current = parseQuantity(quantityInput, minQuantity);
+                                const next = Math.max(minQuantity, current - 1);
+                                setQuantityInput(String(next));
+                              }}
+                              aria-label="Decrease quantity"
+                            >
+                              −
+                            </Button>
+
+                            <Input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={quantityInput}
+                              onChange={(e) => setQuantityInput(e.target.value)}
+                              onBlur={() => {
+                                const q = parseQuantity(quantityInput, minQuantity);
+                                setQuantityInput(String(q));
+                              }}
+                              className="h-10 w-28 text-center"
+                              placeholder={String(minQuantity)}
+                            />
+
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-10 w-10 shrink-0"
+                              onClick={() => {
+                                const current = parseQuantity(quantityInput, minQuantity);
+                                setQuantityInput(String(current + 1));
+                              }}
+                              aria-label="Increase quantity"
+                            >
+                              +
+                            </Button>
+
+                            <Button
+                              type="button"
+                              onClick={() => setQuantityInput(String(minQuantity))}
+                              variant="ghost"
+                              size="sm"
+                              className="text-muted-foreground hover:text-foreground"
+                            >
+                              {lang === "es" ? "Mínimo" : "Min"}
+                            </Button>
+                          </div>
                         </div>
 
                         <Button onClick={handleAddToCart} className="w-full">
