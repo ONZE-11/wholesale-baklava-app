@@ -19,6 +19,8 @@ export default function CheckoutSuccessPage() {
   const { clearCart } = useCart();
   const { lang } = useLanguage();
 
+  const safeLang: "en" | "es" = lang === "en" ? "en" : "es";
+
   const orderId = useMemo(() => sp.get("orderId"), [sp]);
 
   const [loading, setLoading] = useState(true);
@@ -26,6 +28,10 @@ export default function CheckoutSuccessPage() {
   const [err, setErr] = useState<string | null>(null);
 
   const clearedRef = useRef(false);
+
+  const goOrders = () => router.push(`/dashboard/orders?lang=${safeLang}`);
+  const goCart = () => router.push(`/cart?lang=${safeLang}`);
+  const goHome = () => router.push(`/?lang=${safeLang}`);
 
   useEffect(() => {
     if (!orderId) {
@@ -44,7 +50,7 @@ export default function CheckoutSuccessPage() {
       setLoading(true);
       setErr(null);
 
-      // ✅ 10 بار تلاش، هر بار 1.2 ثانیه
+      // ✅ 10 tries, 1.2s each
       for (let i = 0; i < 10; i++) {
         try {
           const res = await fetch(`/api/orders/${orderId}`, { cache: "no-store" });
@@ -55,7 +61,7 @@ export default function CheckoutSuccessPage() {
           const o: Order = json.order;
           if (!cancelled) setOrder(o);
 
-          // ✅ اگر paid شد: cart پاک شود
+          // ✅ Paid => clear cart once
           if (o?.payment_status === "paid") {
             if (!clearedRef.current) {
               clearCart();
@@ -67,7 +73,7 @@ export default function CheckoutSuccessPage() {
             }
           }
 
-          // ✅ اگر cancelled/failed شد: توقف
+          // ✅ Cancelled/failed => stop
           if (o?.payment_status === "cancelled" || o?.payment_status === "failed") {
             if (!cancelled) {
               setLoading(false);
@@ -75,10 +81,9 @@ export default function CheckoutSuccessPage() {
             }
           }
 
-          // هنوز pending/unpaid: کمی صبر کن و دوباره
+          // still pending/unpaid -> retry
           await sleep(1200);
         } catch (e: any) {
-          // اگر خطا بود هم چندبار retry کنیم
           await sleep(1200);
           if (i === 9 && !cancelled) {
             setErr(e?.message || "Unknown error");
@@ -97,15 +102,11 @@ export default function CheckoutSuccessPage() {
     };
   }, [orderId, clearCart]);
 
-  const goOrders = () => router.push("/orders");
-  const goCart = () => router.push("/cart");
-  const goHome = () => router.push("/");
-
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-12">
         <div className="text-sm text-muted-foreground">
-          {lang === "es" ? "Confirmando el pago..." : "Confirming payment..."}
+          {safeLang === "es" ? "Confirmando el pago..." : "Confirming payment..."}
         </div>
       </div>
     );
@@ -115,7 +116,7 @@ export default function CheckoutSuccessPage() {
     return (
       <div className="container mx-auto px-4 py-12 space-y-4">
         <div className="text-sm text-red-600 whitespace-pre-wrap">{err}</div>
-        <Button onClick={goHome}>{lang === "es" ? "Inicio" : "Home"}</Button>
+        <Button onClick={goHome}>{safeLang === "es" ? "Inicio" : "Home"}</Button>
       </div>
     );
   }
@@ -124,19 +125,20 @@ export default function CheckoutSuccessPage() {
     return (
       <div className="container mx-auto px-4 py-12 space-y-4">
         <h1 className="text-2xl font-bold">
-          {lang === "es" ? "Pago completado" : "Payment completed"}
+          {safeLang === "es" ? "Pago completado" : "Payment completed"}
         </h1>
         <p className="text-muted-foreground">
-          {lang === "es"
+          {safeLang === "es"
             ? "Tu pedido ha sido confirmado."
             : "Your order has been confirmed."}
         </p>
-        <div className="flex gap-3">
+
+        <div className="flex flex-wrap gap-3">
           <Button onClick={goOrders}>
-            {lang === "es" ? "Ver pedidos" : "View orders"}
+            {safeLang === "es" ? "Ver pedidos" : "View orders"}
           </Button>
           <Button variant="outline" onClick={goHome}>
-            {lang === "es" ? "Volver" : "Back"}
+            {safeLang === "es" ? "Volver" : "Back"}
           </Button>
         </div>
       </div>
@@ -147,30 +149,36 @@ export default function CheckoutSuccessPage() {
     return (
       <div className="container mx-auto px-4 py-12 space-y-4">
         <h1 className="text-2xl font-bold">
-          {lang === "es" ? "Pago cancelado" : "Payment cancelled"}
+          {safeLang === "es" ? "Pago cancelado" : "Payment cancelled"}
         </h1>
         <p className="text-muted-foreground">
-          {lang === "es"
+          {safeLang === "es"
             ? "No se realizó ningún cargo. Puedes intentarlo de nuevo."
             : "No charge was made. You can try again."}
         </p>
-        <Button onClick={goCart}>{lang === "es" ? "Volver al carrito" : "Back to cart"}</Button>
+
+        <Button onClick={goCart}>
+          {safeLang === "es" ? "Volver al carrito" : "Back to cart"}
+        </Button>
       </div>
     );
   }
 
-  // unpaid/pending بعد از retry ها
+  // unpaid/pending after retries
   return (
     <div className="container mx-auto px-4 py-12 space-y-4">
       <h1 className="text-2xl font-bold">
-        {lang === "es" ? "Procesando" : "Processing"}
+        {safeLang === "es" ? "Procesando" : "Processing"}
       </h1>
       <p className="text-muted-foreground">
-        {lang === "es"
+        {safeLang === "es"
           ? "Tu pago aún se está confirmando. Revisa tus pedidos en unos segundos."
           : "Your payment is still being confirmed. Check your orders in a few seconds."}
       </p>
-      <Button onClick={goOrders}>{lang === "es" ? "Ver pedidos" : "View orders"}</Button>
+
+      <Button onClick={goOrders}>
+        {safeLang === "es" ? "Ver pedidos" : "View orders"}
+      </Button>
     </div>
   );
 }
