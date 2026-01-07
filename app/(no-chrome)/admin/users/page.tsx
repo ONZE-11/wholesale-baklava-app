@@ -30,11 +30,12 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // ✅ per-row resend state (stores email being resent)
+  const [resendingEmail, setResendingEmail] = useState<string | null>(null);
+
   // UI state
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | ApprovalStatus>(
-    "all"
-  );
+  const [statusFilter, setStatusFilter] = useState<"all" | ApprovalStatus>("all");
 
   // Status modal
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -85,8 +86,7 @@ export default function AdminUsersPage() {
     const q = query.trim().toLowerCase();
 
     return users.filter((u) => {
-      const matchesStatus =
-        statusFilter === "all" ? true : u.approval_status === statusFilter;
+      const matchesStatus = statusFilter === "all" ? true : u.approval_status === statusFilter;
 
       const addr = formatFullAddress({
         address: u.address ?? null,
@@ -95,9 +95,7 @@ export default function AdminUsersPage() {
         country: u.country ?? null,
       });
 
-      const hay = `${u.email} ${u.business_name} ${
-        u.role ?? ""
-      } ${addr}`.toLowerCase();
+      const hay = `${u.email} ${u.business_name} ${u.role ?? ""} ${addr}`.toLowerCase();
       const matchesQuery = q ? hay.includes(q) : true;
 
       return matchesStatus && matchesQuery;
@@ -127,11 +125,45 @@ export default function AdminUsersPage() {
     setConfirmOpen(true);
   };
 
-  const updateUserStatus = async (
-    userId: string,
-    status: ApprovalStatus,
-    notes?: string
-  ) => {
+  const resendSetPassword = async (u: User) => {
+    if (!u?.email) return alert("Missing email");
+    if (resendingEmail) return;
+
+    setResendingEmail(u.email);
+
+    try {
+      const res = await fetch("/api/admin/users/resend-set-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: u.email,
+          business_name: u.business_name,
+          redirectTo: `${window.location.origin}/reset-password`,
+          lang: safeLang,
+        }),
+      });
+
+      const json = await safeJson(res);
+
+      if (!res.ok || !json?.success) {
+        console.error("Resend set-password error:", { status: res.status, json });
+        alert(json?.error || "Resend failed");
+        return;
+      }
+
+      alert(
+        t("admin.users.resend_sent", safeLang) ||
+          "Set-password link sent."
+      );
+    } catch (err) {
+      console.error(err);
+      alert("Resend failed");
+    } finally {
+      setResendingEmail(null);
+    }
+  };
+
+  const updateUserStatus = async (userId: string, status: ApprovalStatus, notes?: string) => {
     if (!userId) return alert(t("admin.users.errors.missing_id", safeLang));
 
     try {
@@ -159,9 +191,7 @@ export default function AdminUsersPage() {
 
   const deleteUser = async (userId: string) => {
     try {
-      const res = await fetch(`/api/admin/users/${userId}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(`/api/admin/users/${userId}`, { method: "DELETE" });
       const json = await safeJson(res);
 
       if (res.ok && json?.success) {
@@ -196,13 +226,12 @@ export default function AdminUsersPage() {
           body: JSON.stringify({
             ...payload,
             redirectTo: `${window.location.origin}/reset-password`,
-            lang: safeLang, // ✅ از Context
+            lang: safeLang,
           }),
         });
 
         const json = await safeJson(res);
-        if (!res.ok || !json?.success)
-          throw new Error(json?.error || "Create failed");
+        if (!res.ok || !json?.success) throw new Error(json?.error || "Create failed");
       } else {
         const id = formUser?.id;
         if (!id) throw new Error("Missing user id for edit");
@@ -214,8 +243,7 @@ export default function AdminUsersPage() {
         });
 
         const json = await safeJson(res);
-        if (!res.ok || !json?.success)
-          throw new Error(json?.error || "Update failed");
+        if (!res.ok || !json?.success) throw new Error(json?.error || "Update failed");
       }
 
       setFormOpen(false);
@@ -259,13 +287,8 @@ export default function AdminUsersPage() {
       const json = await safeJson(res);
 
       if (!res.ok || !json?.success) {
-        console.error("Request docs email error:", {
-          status: res.status,
-          json,
-        });
-        return alert(
-          json?.error || t("admin.users.errors.request_docs", safeLang)
-        );
+        console.error("Request docs email error:", { status: res.status, json });
+        return alert(json?.error || t("admin.users.errors.request_docs", safeLang));
       }
 
       await updateUserStatus(userId, "request_docs");
@@ -302,21 +325,13 @@ export default function AdminUsersPage() {
         <select
           className="border rounded px-3 py-2 w-full md:w-56 text-sm"
           value={statusFilter}
-          onChange={(e) =>
-            setStatusFilter(e.target.value as "all" | ApprovalStatus)
-          }
+          onChange={(e) => setStatusFilter(e.target.value as "all" | ApprovalStatus)}
         >
           <option value="all">{t("common.all_statuses", safeLang)}</option>
           <option value="pending">{t("admin.status.pending", safeLang)}</option>
-          <option value="request_docs">
-            {t("admin.status.request_docs", safeLang)}
-          </option>
-          <option value="approved">
-            {t("admin.status.approved", safeLang)}
-          </option>
-          <option value="rejected">
-            {t("admin.status.rejected", safeLang)}
-          </option>
+          <option value="request_docs">{t("admin.status.request_docs", safeLang)}</option>
+          <option value="approved">{t("admin.status.approved", safeLang)}</option>
+          <option value="rejected">{t("admin.status.rejected", safeLang)}</option>
         </select>
 
         <button
@@ -362,19 +377,13 @@ export default function AdminUsersPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td
-                    className="px-3 py-6 text-center text-sm text-muted-foreground"
-                    colSpan={7}
-                  >
+                  <td className="px-3 py-6 text-center text-sm text-muted-foreground" colSpan={7}>
                     {t("common.loading", safeLang)}
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td
-                    className="px-3 py-6 text-center text-sm text-muted-foreground"
-                    colSpan={7}
-                  >
+                  <td className="px-3 py-6 text-center text-sm text-muted-foreground" colSpan={7}>
                     {t("admin.users.no_users", safeLang)}
                   </td>
                 </tr>
@@ -387,15 +396,13 @@ export default function AdminUsersPage() {
                     country: u.country ?? null,
                   });
 
+                  const isResendingThisRow = resendingEmail === u.email;
+
                   return (
                     <tr key={u.id} className="hover:bg-gray-50">
                       <td className="border-b px-3 py-2 text-sm">{u.email}</td>
-                      <td className="border-b px-3 py-2 text-sm font-medium">
-                        {u.business_name}
-                      </td>
-                      <td className="border-b px-3 py-2 text-sm">
-                        {u.role ?? "—"}
-                      </td>
+                      <td className="border-b px-3 py-2 text-sm font-medium">{u.business_name}</td>
+                      <td className="border-b px-3 py-2 text-sm">{u.role ?? "—"}</td>
 
                       <td className="border-b px-3 py-2 text-sm">
                         <span
@@ -403,17 +410,11 @@ export default function AdminUsersPage() {
                             u.approval_status
                           )}`}
                         >
-                          {/* ترجمه label status */}
-                          {t(
-                            `admin.status.${u.approval_status}` as any,
-                            safeLang
-                          )}
+                          {t(`admin.status.${u.approval_status}` as any, safeLang)}
                         </span>
                       </td>
 
-                      <td className="border-b px-3 py-2 text-sm">
-                        {u.phone ?? "—"}
-                      </td>
+                      <td className="border-b px-3 py-2 text-sm">{u.phone ?? "—"}</td>
 
                       <td
                         className="border-b px-3 py-2 text-sm max-w-[420px] truncate"
@@ -424,7 +425,6 @@ export default function AdminUsersPage() {
 
                       <td className="border-b px-3 py-2 text-sm">
                         <div className="flex items-center gap-2 whitespace-nowrap">
-
                           <button
                             className="px-2 py-1 rounded border hover:bg-gray-50"
                             onClick={() => openStatusModal(u)}
@@ -432,6 +432,18 @@ export default function AdminUsersPage() {
                           >
                             {t("admin.users.actions.status", safeLang)}
                           </button>
+
+                          {/* ✅ Resend set-password link */}
+                          <button
+                            className="px-2 py-1 rounded border hover:bg-gray-50 disabled:opacity-60"
+                            onClick={() => resendSetPassword(u)}
+                            type="button"
+                            disabled={loading || saving || isResendingThisRow}
+                            title={isResendingThisRow ? "Sending..." : ""}
+                          >
+                            {isResendingThisRow ? "Sending..." : "Resend link"}
+                          </button>
+
                           <button
                             className="px-2 py-1 rounded border hover:bg-gray-50"
                             onClick={() => openEdit(u)}
@@ -439,6 +451,7 @@ export default function AdminUsersPage() {
                           >
                             {t("common.edit", safeLang)}
                           </button>
+
                           <button
                             className="px-2 py-1 rounded bg-red-600 text-white hover:opacity-90"
                             onClick={() => openDelete(u)}
@@ -472,9 +485,7 @@ export default function AdminUsersPage() {
       <UserFormModal
         isOpen={formOpen}
         mode={formMode}
-        user={
-          formUser ? { ...formUser, role: formUser.role ?? undefined } : null
-        }
+        user={formUser ? { ...formUser, role: formUser.role ?? undefined } : null}
         onClose={() => setFormOpen(false)}
         onSubmit={(payload) => {
           const cleanPayload = Object.fromEntries(
@@ -490,10 +501,7 @@ export default function AdminUsersPage() {
         title={t("admin.users.delete_title", safeLang)}
         description={
           deleteTarget
-            ? t("admin.users.delete_desc", safeLang).replace(
-                "{email}",
-                deleteTarget.email
-              )
+            ? t("admin.users.delete_desc", safeLang).replace("{email}", deleteTarget.email)
             : t("admin.users.delete_desc_generic", safeLang)
         }
         confirmText={t("common.delete", safeLang)}
