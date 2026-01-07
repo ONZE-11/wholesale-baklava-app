@@ -136,6 +136,8 @@ export function UserDetailsModal({
           sm:max-w-2xl
           max-h-[85vh]
           p-0
+          pr-2.5
+          pl-2.5
           overflow-hidden
         "
       >

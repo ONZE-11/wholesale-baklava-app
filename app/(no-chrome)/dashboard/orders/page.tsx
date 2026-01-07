@@ -1,14 +1,24 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+
 import { createSupabaseClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/language-context";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import Link from "next/link";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 /* =======================
    Types
@@ -53,17 +63,21 @@ export default function OrdersPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
+
+  // Applied filters (used by query)
   const [startDate, setStartDate] = useState<string | null>(null);
   const [endDate, setEndDate] = useState<string | null>(null);
+
+  // Draft filters (UI only)
+  const [startDraft, setStartDraft] = useState<string>("");
+  const [endDraft, setEndDraft] = useState<string>("");
 
   const [page, setPage] = useState(1);
   const [pageSize] = useState(5);
   const [hasMore, setHasMore] = useState(true);
 
-  // ✅ برای موبایل: date input گاهی پاک نمی‌شود => ref + key remount
-  const startRef = useRef<HTMLInputElement | null>(null);
-  const endRef = useRef<HTMLInputElement | null>(null);
-  const [dateKey, setDateKey] = useState(0);
+  // ✅ Mobile date modal
+  const [dateModalOpen, setDateModalOpen] = useState(false);
 
   const translations = {
     en: {
@@ -80,6 +94,11 @@ export default function OrdersPage() {
       to_date: "To",
       load_more: "Load More",
       clear_dates: "Clear",
+      apply: "Apply",
+      dates: "Dates",
+      filter_by_dates: "Filter by dates",
+      pick_range: "Pick a date range and press Apply.",
+      close: "Close",
     },
     es: {
       your_orders: "Tus pedidos",
@@ -95,6 +114,11 @@ export default function OrdersPage() {
       to_date: "Hasta",
       load_more: "Cargar más",
       clear_dates: "Limpiar",
+      apply: "Aplicar",
+      dates: "Fechas",
+      filter_by_dates: "Filtrar por fechas",
+      pick_range: "Selecciona un rango y pulsa Aplicar.",
+      close: "Cerrar",
     },
   };
 
@@ -119,22 +143,34 @@ export default function OrdersPage() {
   const getProductName = (product: Product | null | undefined) =>
     product ? (lang === "es" ? product.name_es : product.name_en) : "-";
 
-  // ✅ کلیر تاریخ که روی موبایل هم واقعاً UI را خالی کند
+  // ✅ Clear applied + drafts
   const clearDates = () => {
     setStartDate(null);
     setEndDate(null);
+    setStartDraft("");
+    setEndDraft("");
 
-    // پاک کردن مقدار واقعی input برای موبایل‌های لجوج
-    if (startRef.current) startRef.current.value = "";
-    if (endRef.current) endRef.current.value = "";
-
-    // اگر باز هم چسبید، remount کن
-    setDateKey((k) => k + 1);
-
-    // ریست pagination
     setPage(1);
     setHasMore(true);
   };
+
+  const applyDates = () => {
+    setStartDate(startDraft || null);
+    setEndDate(endDraft || null);
+
+    setPage(1);
+    setHasMore(true);
+    setDateModalOpen(false);
+  };
+
+  const dateSummary = useMemo(() => {
+    const from = startDate || "";
+    const to = endDate || "";
+    if (!from && !to) return lang === "es" ? "Sin fechas" : "No dates";
+    if (from && to) return `${from} → ${to}`;
+    if (from) return `${from} → …`;
+    return `… → ${to}`;
+  }, [startDate, endDate, lang]);
 
   // ✅ forcedPage برای اینکه setPage async بازی درنیاره
   const loadOrders = async (reset: boolean = false, forcedPage?: number) => {
@@ -192,6 +228,7 @@ export default function OrdersPage() {
       .order("created_at", { ascending: false })
       .range((currentPage - 1) * pageSize, currentPage * pageSize - 1);
 
+    // IMPORTANT: created_at is timestamp, comparing with YYYY-MM-DD works but is day-start.
     if (startDate) query = query.gte("created_at", startDate);
     if (endDate) query = query.lte("created_at", endDate);
 
@@ -272,7 +309,7 @@ export default function OrdersPage() {
         </Link>
       </div>
 
-      {/* فیلتر تاریخ و جستجو */}
+      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2 mb-4">
         <Input
           type="text"
@@ -282,34 +319,102 @@ export default function OrdersPage() {
           className="flex-1"
         />
 
-        <div className="flex gap-2 items-center">
+        {/* ✅ Desktop inline date inputs */}
+        <div className="hidden sm:flex gap-2 items-center">
           <Input
-            key={`start-${dateKey}`}
-            ref={startRef}
             type="date"
-            value={startDate ?? ""}
-            onChange={(e) => setStartDate(e.target.value || null)}
-            onInput={(e) =>
-              setStartDate((e.target as HTMLInputElement).value || null)
-            }
+            value={startDraft}
+            onChange={(e) => setStartDraft(e.target.value)}
+          />
+          <Input
+            type="date"
+            value={endDraft}
+            onChange={(e) => setEndDraft(e.target.value)}
           />
 
-          <Input
-            key={`end-${dateKey}`}
-            ref={endRef}
-            type="date"
-            value={endDate ?? ""}
-            onChange={(e) => setEndDate(e.target.value || null)}
-            onInput={(e) =>
-              setEndDate((e.target as HTMLInputElement).value || null)
-            }
-          />
+          <Button
+            type="button"
+            variant="outline"
+            disabled={(startDraft || "") === (startDate || "") && (endDraft || "") === (endDate || "")}
+            onClick={applyDates}
+          >
+            {t("apply")}
+          </Button>
+
+          <Button type="button" variant="outline" onClick={clearDates}>
+            {t("clear_dates")}
+          </Button>
+        </div>
+
+        {/* ✅ Mobile: open modal instead of inline date inputs */}
+        <div className="flex sm:hidden gap-2 items-center">
+          <button
+            type="button"
+            className="border rounded px-3 py-2 text-sm flex-1 text-left"
+            onClick={() => {
+              // sync draft with applied when opening modal
+              setStartDraft(startDate ?? "");
+              setEndDraft(endDate ?? "");
+              setDateModalOpen(true);
+            }}
+            title={dateSummary}
+          >
+            {t("dates")}: <span className="text-muted-foreground">{dateSummary}</span>
+          </button>
 
           <Button type="button" variant="outline" onClick={clearDates}>
             {t("clear_dates")}
           </Button>
         </div>
       </div>
+
+      {/* Mobile Date Dialog */}
+      <Dialog open={dateModalOpen} onOpenChange={(v) => setDateModalOpen(v)}>
+        <DialogContent className="w-[calc(100vw-24px)] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("filter_by_dates")}</DialogTitle>
+            <DialogDescription>{t("pick_range")}</DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-3">
+            <div className="grid gap-1">
+              <label className="text-xs text-muted-foreground">{t("from_date")}</label>
+              <Input
+                type="date"
+                value={startDraft}
+                onChange={(e) => setStartDraft(e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-1">
+              <label className="text-xs text-muted-foreground">{t("to_date")}</label>
+              <Input
+                type="date"
+                value={endDraft}
+                onChange={(e) => setEndDraft(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+            <Button variant="outline" type="button" onClick={() => setDateModalOpen(false)}>
+              {t("close")}
+            </Button>
+
+            <Button variant="outline" type="button" onClick={() => { clearDates(); setDateModalOpen(false); }}>
+              {t("clear_dates")}
+            </Button>
+
+            <Button
+              type="button"
+              onClick={applyDates}
+              disabled={(startDraft || "") === (startDate || "") && (endDraft || "") === (endDate || "")}
+            >
+              {t("apply")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {error && <p className="text-red-500 mb-3">{error}</p>}
       {filteredOrders.length === 0 && !error && (

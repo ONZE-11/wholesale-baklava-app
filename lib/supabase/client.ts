@@ -1,16 +1,15 @@
 // lib/supabase/client.ts
-import { createBrowserClient } from '@supabase/ssr';
-import { useMemo } from 'react';
+import { createBrowserClient } from "@supabase/ssr";
 
-export function createSupabaseClient(p0?: { accessToken: string; }) {
+export function createSupabaseClient() {
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: {
+        flowType: "pkce",
+        detectSessionInUrl: true,
+      },
+    }
   );
-}
-
-// Hook برای استفاده راحت در کامپوننت‌ها
-export function useSupabase() {
-  const client = useMemo(() => createSupabaseClient(), []);
-  return client;
 }

@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createEmailCallbackSupabaseClient } from "@/lib/supabase/email-callback-client";
 
 type Lang = "en" | "es";
 const L = (v: any): Lang => (v === "es" ? "es" : "en");
@@ -95,7 +94,6 @@ function parseHashParams() {
   return new URLSearchParams(hash);
 }
 
-// فقط typeهای معتبر Supabase برای verifyOtp
 function normalizeOtpType(v: string | null): "recovery" | "invite" | null {
   if (!v) return null;
   const x = v.toLowerCase();
@@ -112,14 +110,15 @@ export default function ResetPasswordPage() {
   const uiLang = useMemo(() => L(lang), [lang]);
   const t = copy[uiLang];
 
-  // ✅ مهم: کلاینت Supabase ثابت
-
-  const supabase = useMemo(() => createEmailCallbackSupabaseClient(), []);
+  const supabase = useMemo(() => createSupabaseClient(), []);
 
   // query params
-  const code = sp.get("code");
-  const token_hash = sp.get("token_hash");
+  const code = sp.get("code"); // PKCE
+  const token = sp.get("token"); // verify link (admin generateLink)
   const queryType = normalizeOtpType(sp.get("type")); // invite یا recovery
+
+  // hash params (implicit)
+  const [hashHint, setHashHint] = useState(false);
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -131,10 +130,14 @@ export default function ResetPasswordPage() {
   const [verifying, setVerifying] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const hasAnyHint =
-    !!code ||
-    !!token_hash ||
-    (typeof window !== "undefined" && !!window.location.hash);
+  useEffect(() => {
+    // فقط برای اینکه SSR گیر نده و hasAnyHint دقیق باشه
+    if (typeof window !== "undefined") {
+      setHashHint(!!window.location.hash);
+    }
+  }, []);
+
+  const hasAnyHint = !!code || (!!token && !!queryType) || hashHint;
 
   useEffect(() => {
     let cancelled = false;
@@ -155,7 +158,7 @@ export default function ResetPasswordPage() {
           return;
         }
 
-        // 1) PKCE code flow (گاهی invite/recovery به این شکل میاد)
+        // 1) PKCE code flow
         if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (cancelled) return;
@@ -174,15 +177,11 @@ export default function ResetPasswordPage() {
           return;
         }
 
-        // 2) token_hash flow (invite/recovery)
-        if (token_hash) {
-          // اگر type نیامده بود، پیش‌فرض recovery نذاریم کورکورانه.
-          // در لینک‌های admin generateLink معمولاً type=invite میاد.
-          const otpType = queryType ?? "recovery";
-
+        // 2) token+type flow (auth/v1/verify?token=...&type=...)
+        if (token && queryType) {
           const { error } = await supabase.auth.verifyOtp({
-            token_hash,
-            type: otpType,
+            token_hash: token, // ✅ token در URL همون token_hash محسوب میشه
+            type: queryType,
           });
 
           if (cancelled) return;
@@ -201,18 +200,13 @@ export default function ResetPasswordPage() {
           return;
         }
 
-        // 3) hash-based tokens (موبایل خیلی رایج)
+        // 3) hash-based tokens (مثل چیزی که تو لاگت هست)
         const hp = parseHashParams();
         const access_token = hp.get("access_token");
         const refresh_token = hp.get("refresh_token");
-        const hashType = normalizeOtpType(hp.get("type")); // invite یا recovery
+        const hashType = normalizeOtpType(hp.get("type"));
 
-        // ✅ هم invite هم recovery را قبول کن
-        if (
-          access_token &&
-          refresh_token &&
-          (hashType === "invite" || hashType === "recovery" || !hashType)
-        ) {
+        if (access_token && refresh_token) {
           const { error } = await supabase.auth.setSession({
             access_token,
             refresh_token,
@@ -226,7 +220,7 @@ export default function ResetPasswordPage() {
             return;
           }
 
-          // تمیزکاری hash برای جلوگیری از reuse/گیجی
+          // تمیزکاری hash (خیلی مهم: reuse و گیجی کم میشه)
           try {
             window.history.replaceState(
               {},
@@ -248,7 +242,7 @@ export default function ResetPasswordPage() {
     return () => {
       cancelled = true;
     };
-  }, [hasAnyHint, code, token_hash, queryType, supabase, t.noSession]);
+  }, [hasAnyHint, code, token, queryType, supabase, t.noSession]);
 
   if (!hasAnyHint) {
     return (
@@ -286,7 +280,6 @@ export default function ResetPasswordPage() {
     setLoading(true);
     setMsg(null);
 
-    // ✅ اگر session نباشد یعنی لینک invalid/expired/used یا در مرورگر دیگری باز شده
     const { data: s } = await supabase.auth.getSession();
     if (!s.session) {
       setMsg(t.noSession);
@@ -298,7 +291,6 @@ export default function ResetPasswordPage() {
 
     if (error) {
       console.error("updateUser error:", error);
-      // ✅ خطای واقعی را نشان بده
       setMsg(error.message || t.noSession);
       setLoading(false);
       return;
@@ -307,10 +299,7 @@ export default function ResetPasswordPage() {
     setSuccess(true);
     setMsg(`${t.success} ${t.redirecting}`);
 
-    // اگر نمی‌خوای کاربر بعدش ناگهان “لاگین” به نظر برسه، signOut کن
     await supabase.auth.signOut();
-
-    // ریدایرکت
     setTimeout(() => router.replace("/login?reset=success"), 1200);
   };
 
@@ -377,7 +366,6 @@ export default function ResetPasswordPage() {
               />
             </div>
 
-            {/* ✅ دکمه فقط وقتی ready شد فعال */}
             <Button
               type="submit"
               className="w-full"
