@@ -90,19 +90,23 @@ export default function ResetPasswordPage() {
   const uiLang = useMemo(() => L(lang), [lang]);
   const t = copy[uiLang];
 
-  // ✅ Supabase ممکنه code یا token_hash بده (بسته به نوع لینک/نسخه/تنظیمات)
-  const token = sp.get("code") ?? sp.get("token_hash");
+  // لینک‌های Supabase ممکنه این‌ها رو داشته باشن:
+  const code = sp.get("code");
+  const token_hash = sp.get("token_hash");
+  const type = sp.get("type"); // معمولاً "recovery"
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  // ready یعنی session ریکاوری ساخته شده و updateUser معنی دارد
+  // ready یعنی session برای reset برقرار شده
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (!token) return;
+    // اگر هیچ چیزی نداریم، مستقیم اومده این صفحه
+    if (!code && !token_hash) return;
 
     let cancelled = false;
 
@@ -110,29 +114,55 @@ export default function ResetPasswordPage() {
       setMsg(null);
       setReady(false);
 
-      // ✅ کلیدی: ساختن session از روی توکن
-      const { error } = await supabase.auth.exchangeCodeForSession(token);
+      // 1) حالت code (PKCE)
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      if (error) {
-        console.error("exchangeCodeForSession error:", error);
-        setMsg(t.noSession);
-        setReady(false);
+        if (error) {
+          console.error("exchangeCodeForSession error:", error);
+          setMsg(t.noSession);
+          setReady(false);
+          return;
+        }
+
+        setReady(true);
         return;
       }
 
-      setReady(true);
+      // 2) حالت token_hash + type=recovery
+      // Supabase برای recovery معمولاً type=recovery می‌فرستد
+      if (token_hash) {
+        const otpType = (type === "recovery" ? "recovery" : "recovery") as any;
+
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash,
+          type: otpType,
+        });
+
+        if (cancelled) return;
+
+        if (error) {
+          console.error("verifyOtp error:", error);
+          setMsg(t.noSession);
+          setReady(false);
+          return;
+        }
+
+        setReady(true);
+        return;
+      }
     })();
 
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, supabase, uiLang]); // uiLang برای اینکه متن error به زبان درست آپدیت شود
+  }, [code, token_hash, type, supabase, uiLang]);
 
-  // ✅ اگر هیچ توکنی نیست، یعنی مستقیم اومده این صفحه
-  if (!token) {
+  // اگر هیچ توکنی نیست
+  if (!code && !token_hash) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <Card className="max-w-md w-full">
@@ -160,6 +190,7 @@ export default function ResetPasswordPage() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // اجازه تایپ می‌دیم، ولی بدون session ذخیره نمی‌کنیم
     if (!ready) {
       setMsg(t.noSession);
       return;
@@ -182,7 +213,7 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    // ✅ تمیزکاری: session ریکاوری رو نگه ندار
+    // تمیزکاری
     await supabase.auth.signOut();
 
     setMsg(t.success);
@@ -228,7 +259,7 @@ export default function ResetPasswordPage() {
                 minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                disabled={loading || !ready}
+                disabled={loading}   // ✅ فقط موقع ذخیره قفل کن، نه تا وقتی ready بشه
                 autoComplete="new-password"
               />
             </div>
@@ -241,7 +272,7 @@ export default function ResetPasswordPage() {
                 minLength={6}
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
-                disabled={loading || !ready}
+                disabled={loading}   // ✅ همین
                 autoComplete="new-password"
               />
             </div>
@@ -250,7 +281,6 @@ export default function ResetPasswordPage() {
               {loading ? t.saving : t.save}
             </Button>
 
-            {/* ✅ فقط وقتی هنوز پیام نداریم و آماده نیستیم */}
             {!ready && !msg && (
               <p className="text-xs text-muted-foreground">{t.verifying}</p>
             )}
