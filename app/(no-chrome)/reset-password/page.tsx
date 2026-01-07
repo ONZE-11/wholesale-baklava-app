@@ -259,7 +259,7 @@ export default function ResetPasswordPage() {
                 minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}   // ✅ فقط موقع ذخیره قفل کن، نه تا وقتی ready بشه
+                disabled={loading} // ✅ فقط موقع ذخیره قفل کن، نه تا وقتی ready بشه
                 autoComplete="new-password"
               />
             </div>
@@ -272,12 +272,12 @@ export default function ResetPasswordPage() {
                 minLength={6}
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
-                disabled={loading}   // ✅ همین
+                disabled={loading} // ✅ همین
                 autoComplete="new-password"
               />
             </div>
 
-            <Button className="w-full" disabled={loading || !ready}>
+            <Button className="w-full" disabled={loading}>
               {loading ? t.saving : t.save}
             </Button>
 
