@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseClient } from "@/lib/supabase/client";
@@ -13,40 +13,71 @@ import { Label } from "@/components/ui/label";
 type Lang = "en" | "es";
 const L = (v: any): Lang => (v === "es" ? "es" : "en");
 
-const copy: Record<Lang, any> = {
+type CopyShape = {
+  noSession: string;
+  missingTitle: string;
+  missingDesc: string;
+  goForgot: string;
+  backLogin: string;
+
+  title: string;
+  desc: string;
+  password: string;
+  confirm: string;
+
+  mismatch: string;
+  success: string;
+
+  requestNew: string;
+  saving: string;
+  save: string;
+
+  verifying: string;
+};
+
+const copy: Record<Lang, CopyShape> = {
   en: {
-    title: "Set a new password",
-    desc: "Choose a new password for your account.",
-    missingTitle: "Reset link required",
-    missingDesc: "Please request a password reset link first.",
-    goForgot: "Go to Forgot Password",
+    noSession: "Invalid or expired reset link.",
+    missingTitle: "Reset link missing",
+    missingDesc: "No reset token found. Please request a new password reset.",
+    goForgot: "Request password reset",
+    backLogin: "Back to login",
+
+    title: "Reset your password",
+    desc: "Enter your new password below.",
     password: "New password",
     confirm: "Confirm password",
-    save: "Save password",
-    saving: "Saving...",
+
     mismatch: "Passwords do not match.",
-    noSession:
-      "We couldn’t verify your reset session. Request a new link and open it in the same browser.",
-    success: "Password updated. Redirecting to login...",
-    backLogin: "Back to login",
-    requestNew: "Request a new link",
+    success: "Password reset successfully! Redirecting to login...",
+
+    requestNew: "Request new link",
+    saving: "Saving...",
+    save: "Reset password",
+
+    verifying: "Verifying reset link...",
   },
   es: {
-    title: "Crear nueva contraseña",
-    desc: "Elige una nueva contraseña para tu cuenta.",
-    missingTitle: "Se requiere enlace",
-    missingDesc: "Primero solicita un enlace para restablecer la contraseña.",
-    goForgot: "Ir a 'Olvidé mi contraseña'",
+    noSession: "Enlace de restablecimiento inválido o expirado.",
+    missingTitle: "Falta el enlace de restablecimiento",
+    missingDesc:
+      "No se encontró el token de restablecimiento. Solicita un nuevo enlace.",
+    goForgot: "Solicitar restablecimiento",
+    backLogin: "Volver a iniciar sesión",
+
+    title: "Restablecer contraseña",
+    desc: "Ingresa tu nueva contraseña a continuación.",
     password: "Nueva contraseña",
     confirm: "Confirmar contraseña",
-    save: "Guardar contraseña",
-    saving: "Guardando...",
+
     mismatch: "Las contraseñas no coinciden.",
-    noSession:
-      "No pudimos verificar tu sesión. Solicita un enlace nuevo y ábrelo en el mismo navegador.",
-    success: "Contraseña actualizada. Redirigiendo...",
-    backLogin: "Volver a iniciar sesión",
-    requestNew: "Solicitar un nuevo enlace",
+    success: "¡Contraseña restablecida! Redirigiendo a inicio de sesión...",
+
+    requestNew: "Solicitar nuevo enlace",
+    saving: "Guardando...",
+    save: "Restablecer contraseña",
+
+    verifying: "Verificando enlace...",
   },
 };
 
@@ -59,15 +90,49 @@ export default function ResetPasswordPage() {
   const uiLang = useMemo(() => L(lang), [lang]);
   const t = copy[uiLang];
 
-  const code = sp.get("code"); // اگر نباشه یعنی مستقیم اومده اینجا
+  // ✅ Supabase ممکنه code یا token_hash بده (بسته به نوع لینک/نسخه/تنظیمات)
+  const token = sp.get("code") ?? sp.get("token_hash");
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  // ✅ اگر code نداریم، UX درست: راهنمایی به forgot-password
-  if (!code) {
+  // ready یعنی session ریکاوری ساخته شده و updateUser معنی دارد
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+
+    let cancelled = false;
+
+    (async () => {
+      setMsg(null);
+      setReady(false);
+
+      // ✅ کلیدی: ساختن session از روی توکن
+      const { error } = await supabase.auth.exchangeCodeForSession(token);
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error("exchangeCodeForSession error:", error);
+        setMsg(t.noSession);
+        setReady(false);
+        return;
+      }
+
+      setReady(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, supabase, uiLang]); // uiLang برای اینکه متن error به زبان درست آپدیت شود
+
+  // ✅ اگر هیچ توکنی نیست، یعنی مستقیم اومده این صفحه
+  if (!token) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <Card className="max-w-md w-full">
@@ -76,9 +141,11 @@ export default function ResetPasswordPage() {
           </CardHeader>
           <CardContent className="space-y-4 text-sm">
             <p className="text-muted-foreground">{t.missingDesc}</p>
+
             <Link href="/forgot-password">
               <Button className="w-full">{t.goForgot}</Button>
             </Link>
+
             <Link href="/login">
               <Button variant="outline" className="w-full">
                 {t.backLogin}
@@ -92,6 +159,11 @@ export default function ResetPasswordPage() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!ready) {
+      setMsg(t.noSession);
+      return;
+    }
 
     if (password !== confirm) {
       setMsg(t.mismatch);
@@ -110,6 +182,9 @@ export default function ResetPasswordPage() {
       return;
     }
 
+    // ✅ تمیزکاری: session ریکاوری رو نگه ندار
+    await supabase.auth.signOut();
+
     setMsg(t.success);
     setTimeout(() => router.replace("/login"), 1500);
   };
@@ -126,6 +201,7 @@ export default function ResetPasswordPage() {
           {msg && (
             <div className="rounded-lg border bg-muted/40 p-3 text-sm">
               {msg}
+
               {msg === t.noSession && (
                 <div className="mt-3 flex gap-2">
                   <Link href="/forgot-password" className="flex-1">
@@ -152,7 +228,8 @@ export default function ResetPasswordPage() {
                 minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
+                disabled={loading || !ready}
+                autoComplete="new-password"
               />
             </div>
 
@@ -164,13 +241,19 @@ export default function ResetPasswordPage() {
                 minLength={6}
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
-                disabled={loading}
+                disabled={loading || !ready}
+                autoComplete="new-password"
               />
             </div>
 
-            <Button className="w-full" disabled={loading}>
+            <Button className="w-full" disabled={loading || !ready}>
               {loading ? t.saving : t.save}
             </Button>
+
+            {/* ✅ فقط وقتی هنوز پیام نداریم و آماده نیستیم */}
+            {!ready && !msg && (
+              <p className="text-xs text-muted-foreground">{t.verifying}</p>
+            )}
           </form>
 
           <Link href="/login">

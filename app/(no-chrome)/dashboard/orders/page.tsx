@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/language-context";
@@ -60,13 +60,17 @@ export default function OrdersPage() {
   const [pageSize] = useState(5);
   const [hasMore, setHasMore] = useState(true);
 
+  // ✅ برای موبایل: date input گاهی پاک نمی‌شود => ref + key remount
+  const startRef = useRef<HTMLInputElement | null>(null);
+  const endRef = useRef<HTMLInputElement | null>(null);
+  const [dateKey, setDateKey] = useState(0);
+
   const translations = {
     en: {
       your_orders: "Your Orders",
       back_home: "Back to Home",
       no_orders: "No orders found.",
-      no_access:
-        "You don’t have access to view orders or something went wrong.",
+      no_access: "You don’t have access to view orders or something went wrong.",
       payment_status: "Payment",
       total: "Total",
       date: "Date",
@@ -75,6 +79,7 @@ export default function OrdersPage() {
       from_date: "From",
       to_date: "To",
       load_more: "Load More",
+      clear_dates: "Clear",
     },
     es: {
       your_orders: "Tus pedidos",
@@ -89,8 +94,12 @@ export default function OrdersPage() {
       from_date: "Desde",
       to_date: "Hasta",
       load_more: "Cargar más",
+      clear_dates: "Limpiar",
     },
   };
+
+  const t = (key: keyof typeof translations.en) =>
+    lang === "es" ? translations.es[key] : translations.en[key];
 
   function formatOrderDate(dateString?: string | null) {
     if (!dateString) return "—";
@@ -104,18 +113,35 @@ export default function OrdersPage() {
     const hh = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
 
-    // نزدیک به همون فرمت قبلی، فقط برعکس + ساعت
-    return `${y}/${m}/${day} •  ${hh}:${mm}`;
+    return `${y}/${m}/${day} • ${hh}:${mm}`;
   }
-
-  const t = (key: keyof typeof translations.en) =>
-    lang === "es" ? translations.es[key] : translations.en[key];
 
   const getProductName = (product: Product | null | undefined) =>
     product ? (lang === "es" ? product.name_es : product.name_en) : "-";
 
-  const loadOrders = async (reset: boolean = false) => {
+  // ✅ کلیر تاریخ که روی موبایل هم واقعاً UI را خالی کند
+  const clearDates = () => {
+    setStartDate(null);
+    setEndDate(null);
+
+    // پاک کردن مقدار واقعی input برای موبایل‌های لجوج
+    if (startRef.current) startRef.current.value = "";
+    if (endRef.current) endRef.current.value = "";
+
+    // اگر باز هم چسبید، remount کن
+    setDateKey((k) => k + 1);
+
+    // ریست pagination
+    setPage(1);
+    setHasMore(true);
+  };
+
+  // ✅ forcedPage برای اینکه setPage async بازی درنیاره
+  const loadOrders = async (reset: boolean = false, forcedPage?: number) => {
     setIsLoading(true);
+    setError(null);
+
+    const currentPage = forcedPage ?? page;
 
     const {
       data: { user },
@@ -127,7 +153,7 @@ export default function OrdersPage() {
       return;
     }
 
-    // ✅ 1) گرفتن profile.id (public.users.id)
+    // ✅ گرفتن profile.id (public.users.id)
     const { data: profileData, error: profileErr } = await supabase
       .from("users")
       .select("id")
@@ -162,10 +188,9 @@ export default function OrdersPage() {
         )
       `
       )
-      // ✅ 2) فیلتر درست
       .eq("user_id", profileId)
       .order("created_at", { ascending: false })
-      .range((page - 1) * pageSize, page * pageSize - 1);
+      .range((currentPage - 1) * pageSize, currentPage * pageSize - 1);
 
     if (startDate) query = query.gte("created_at", startDate);
     if (endDate) query = query.lte("created_at", endDate);
@@ -174,7 +199,7 @@ export default function OrdersPage() {
 
     if (ordersError) {
       setError(t("no_access"));
-      setOrders([]);
+      if (reset) setOrders([]);
       setIsLoading(false);
       return;
     }
@@ -203,7 +228,7 @@ export default function OrdersPage() {
     if (productsData) productsData.forEach((p) => (productMap[p.id] = p));
     setProductsMap(productMap);
 
-    const normalizedOrders = ordersData.map((order: any) => ({
+    const normalizedOrders: Order[] = ordersData.map((order: any) => ({
       ...order,
       order_items: (order.order_items || []).map((item: any) => ({
         ...item,
@@ -218,9 +243,12 @@ export default function OrdersPage() {
     setIsLoading(false);
   };
 
+  // ✅ وقتی تاریخ/زبان عوض شد، همیشه از page=1 لود کن
   useEffect(() => {
     setPage(1);
-    loadOrders(true);
+    setHasMore(true);
+    loadOrders(true, 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang, startDate, endDate]);
 
   const filteredOrders = orders.filter((order) =>
@@ -229,8 +257,9 @@ export default function OrdersPage() {
     )
   );
 
-  if (isLoading && page === 1)
+  if (isLoading && page === 1) {
     return <div className="p-4 text-sm">{t("your_orders")}...</div>;
+  }
 
   return (
     <div className="container mx-auto p-4">
@@ -252,19 +281,33 @@ export default function OrdersPage() {
           onChange={(e) => setSearch(e.target.value)}
           className="flex-1"
         />
-        <div className="flex gap-2">
+
+        <div className="flex gap-2 items-center">
           <Input
+            key={`start-${dateKey}`}
+            ref={startRef}
             type="date"
-            placeholder={t("from_date")}
             value={startDate ?? ""}
             onChange={(e) => setStartDate(e.target.value || null)}
+            onInput={(e) =>
+              setStartDate((e.target as HTMLInputElement).value || null)
+            }
           />
+
           <Input
+            key={`end-${dateKey}`}
+            ref={endRef}
             type="date"
-            placeholder={t("to_date")}
             value={endDate ?? ""}
             onChange={(e) => setEndDate(e.target.value || null)}
+            onInput={(e) =>
+              setEndDate((e.target as HTMLInputElement).value || null)
+            }
           />
+
+          <Button type="button" variant="outline" onClick={clearDates}>
+            {t("clear_dates")}
+          </Button>
         </div>
       </div>
 
@@ -299,9 +342,7 @@ export default function OrdersPage() {
                     className="flex justify-between items-center border-b pb-1 last:border-none"
                   >
                     <div className="flex-1">
-                      <p className="font-medium">
-                        {getProductName(item.product)}
-                      </p>
+                      <p className="font-medium">{getProductName(item.product)}</p>
                       <p className="text-xs text-muted-foreground">
                         {item.quantity} × ${item.unit_price.toFixed(2)}
                       </p>
@@ -313,14 +354,9 @@ export default function OrdersPage() {
                 ))}
               </div>
             </div>
-            {(() => {
-              const subtotal = order.order_items.reduce(
-                (s, it) => s + Number(it.subtotal),
-                0
-              );
-              const tax = Number(order.tax_amount ?? 0);
-              const total = Number(order.total_amount);
 
+            {(() => {
+              const tax = Number(order.tax_amount ?? 0);
               return (
                 <div className="border-t pt-2 mt-2 space-y-1 text-sm">
                   <div className="flex justify-between">
@@ -346,10 +382,12 @@ export default function OrdersPage() {
         <div className="flex justify-center mt-3">
           <Button
             onClick={() => {
-              setPage((prev) => prev + 1);
-              loadOrders();
+              const next = page + 1;
+              setPage(next);
+              loadOrders(false, next);
             }}
             variant="outline"
+            disabled={isLoading}
           >
             {t("load_more")}
           </Button>
