@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/language-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -95,19 +95,18 @@ function parseHashParams() {
 }
 
 export default function ResetPasswordPage() {
+  const router = useRouter();
   const sp = useSearchParams();
+  const supabase = createSupabaseClient();
   const { lang } = useLanguage();
 
   const uiLang = useMemo(() => L(lang), [lang]);
   const t = copy[uiLang];
 
-  // ✅ مهم: Supabase client فقط یک‌بار ساخته شود
-  const supabase = useMemo(() => createSupabaseClient(), []);
-
-  // query params
+  // query params (بعضی لینک‌ها اینجوری میاد)
   const code = sp.get("code");
   const token_hash = sp.get("token_hash");
-  const type = sp.get("type"); // ideally recovery
+  const type = sp.get("type"); // ideally "recovery"
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -117,25 +116,27 @@ export default function ResetPasswordPage() {
 
   const [ready, setReady] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [success, setSuccess] = useState(false);
 
-  const hasAnyResetHint =
-    !!code ||
-    !!token_hash ||
-    (typeof window !== "undefined" && !!window.location.hash);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
-      if (!hasAnyResetHint) return;
+      // اگر هیچ hint نداریم، verify لازم نیست
+      const hasHint =
+        !!code ||
+        !!token_hash ||
+        (typeof window !== "undefined" && !!window.location.hash);
+
+      if (!hasHint) return;
 
       setMsg(null);
       setReady(false);
       setVerifying(true);
 
       try {
-        // 0) session already exists?
+        // 0) اگر session از قبل هست، آماده‌ایم
         const { data: s0 } = await supabase.auth.getSession();
         if (cancelled) return;
         if (s0.session) {
@@ -143,29 +144,26 @@ export default function ResetPasswordPage() {
           return;
         }
 
-        // 1) PKCE code
+        // 1) PKCE code flow
         if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (cancelled) return;
 
           if (error) {
             console.error("exchangeCodeForSession error:", error);
-            setMsg(error.message || t.noSession);
+            setMsg(t.noSession);
             return;
           }
 
           const { data: s1 } = await supabase.auth.getSession();
-          if (cancelled) return;
-
-          if (s1.session) setReady(true);
-          else setMsg(t.noSession);
+          if (!cancelled && s1.session) setReady(true);
+          if (!cancelled && !s1.session) setMsg(t.noSession);
           return;
         }
 
-        // 2) token_hash recovery
+        // 2) token_hash recovery flow
         if (token_hash) {
           const otpType = (type === "recovery" ? "recovery" : "recovery") as any;
-
           const { error } = await supabase.auth.verifyOtp({
             token_hash,
             type: otpType,
@@ -175,19 +173,17 @@ export default function ResetPasswordPage() {
 
           if (error) {
             console.error("verifyOtp error:", error);
-            setMsg(error.message || t.noSession);
+            setMsg(t.noSession);
             return;
           }
 
           const { data: s2 } = await supabase.auth.getSession();
-          if (cancelled) return;
-
-          if (s2.session) setReady(true);
-          else setMsg(t.noSession);
+          if (!cancelled && s2.session) setReady(true);
+          if (!cancelled && !s2.session) setMsg(t.noSession);
           return;
         }
 
-        // 3) hash tokens (mobile common)
+        // 3) hash-based flow (خیلی رایج در موبایل)
         const hp = parseHashParams();
         const access_token = hp.get("access_token");
         const refresh_token = hp.get("refresh_token");
@@ -207,11 +203,11 @@ export default function ResetPasswordPage() {
 
           if (error) {
             console.error("setSession error:", error);
-            setMsg(error.message || t.noSession);
+            setMsg(t.noSession);
             return;
           }
 
-          // پاک کردن hash برای جلوگیری از reuse/گیجی
+          // تمیزکاری URL hash (اختیاری)
           try {
             window.history.replaceState(
               {},
@@ -233,7 +229,13 @@ export default function ResetPasswordPage() {
     return () => {
       cancelled = true;
     };
-  }, [hasAnyResetHint, code, token_hash, type, supabase, t.noSession]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, token_hash, type, supabase, uiLang]);
+
+  const hasAnyResetHint =
+    !!code ||
+    !!token_hash ||
+    (typeof window !== "undefined" && !!window.location.hash);
 
   if (!hasAnyResetHint) {
     return (
@@ -271,7 +273,7 @@ export default function ResetPasswordPage() {
     setLoading(true);
     setMsg(null);
 
-    // اگر session نباشد، لینک invalid/used/expired است
+    // دوباره session رو چک کن (مخصوصاً موبایل)
     const { data: s } = await supabase.auth.getSession();
     if (!s.session) {
       setMsg(t.noSession);
@@ -283,23 +285,19 @@ export default function ResetPasswordPage() {
 
     if (error) {
       console.error("updateUser error:", error);
-      setMsg(error.message || t.noSession);
+      setMsg(t.noSession);
       setLoading(false);
       return;
     }
 
+    // ✅ پیام موفقیت دوزبانه
     setSuccess(true);
     setMsg(`${t.success} ${t.redirecting}`);
 
-    // برای اینکه کاربر گیج نشه و session ریکاوری باقی نمونه
+    // برای جلوگیری از گیج شدن (چون session ریکاوری کاربر رو لاگین نشون می‌ده)
     await supabase.auth.signOut();
 
-    // ✅ قابل اعتمادتر از router.replace برای بعضی سناریوهای موبایل/SPA
-    setTimeout(() => {
-      if (typeof window !== "undefined") {
-        window.location.assign("/login?reset=success");
-      }
-    }, 1200);
+    setTimeout(() => router.replace("/login?reset=success"), 1500);
   };
 
   return (
@@ -321,7 +319,7 @@ export default function ResetPasswordPage() {
             >
               {msg}
 
-              {!success && msg === t.noSession && (
+              {msg === t.noSession && (
                 <div className="mt-3 flex gap-2">
                   <Link href="/forgot-password" className="flex-1">
                     <Button variant="outline" className="w-full">
@@ -368,8 +366,7 @@ export default function ResetPasswordPage() {
             <Button
               type="submit"
               className="w-full"
-              disabled={loading || success || !ready}
-              title={!ready ? t.noSession : ""}
+              disabled={loading || success}
             >
               {loading ? t.saving : t.save}
             </Button>
