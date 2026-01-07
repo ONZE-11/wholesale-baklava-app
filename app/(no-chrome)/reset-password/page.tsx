@@ -37,7 +37,8 @@ type CopyShape = {
 
 const copy: Record<Lang, CopyShape> = {
   en: {
-    noSession: "Invalid or expired reset link.",
+    noSession:
+      "We couldn’t verify your reset session. Request a new link and open it in the same browser.",
     missingTitle: "Reset link missing",
     missingDesc: "No reset token found. Please request a new password reset.",
     goForgot: "Request password reset",
@@ -58,7 +59,8 @@ const copy: Record<Lang, CopyShape> = {
     verifying: "Verifying reset link...",
   },
   es: {
-    noSession: "Enlace de restablecimiento inválido o expirado.",
+    noSession:
+      "No pudimos verificar tu sesión. Solicita un enlace nuevo y ábrelo en el mismo navegador.",
     missingTitle: "Falta el enlace de restablecimiento",
     missingDesc:
       "No se encontró el token de restablecimiento. Solicita un nuevo enlace.",
@@ -81,6 +83,14 @@ const copy: Record<Lang, CopyShape> = {
   },
 };
 
+function parseHashParams() {
+  if (typeof window === "undefined") return new URLSearchParams();
+  const hash = window.location.hash?.startsWith("#")
+    ? window.location.hash.slice(1)
+    : window.location.hash || "";
+  return new URLSearchParams(hash);
+}
+
 export default function ResetPasswordPage() {
   const router = useRouter();
   const sp = useSearchParams();
@@ -90,10 +100,10 @@ export default function ResetPasswordPage() {
   const uiLang = useMemo(() => L(lang), [lang]);
   const t = copy[uiLang];
 
-  // لینک‌های Supabase ممکنه این‌ها رو داشته باشن:
+  // query params
   const code = sp.get("code");
   const token_hash = sp.get("token_hash");
-  const type = sp.get("type"); // معمولاً "recovery"
+  const type = sp.get("type"); // ideally "recovery"
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -101,57 +111,95 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  // ready یعنی session برای reset برقرار شده
   const [ready, setReady] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
-    // اگر هیچ چیزی نداریم، مستقیم اومده این صفحه
-    if (!code && !token_hash) return;
-
     let cancelled = false;
 
     (async () => {
       setMsg(null);
       setReady(false);
+      setVerifying(true);
 
-      // 1) حالت code (PKCE)
-      if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-
+      try {
+        // 0) اگر سشن از قبل ست شده (خیلی وقت‌ها Supabase خودش از hash ست می‌کنه)
+        const { data: s0 } = await supabase.auth.getSession();
         if (cancelled) return;
-
-        if (error) {
-          console.error("exchangeCodeForSession error:", error);
-          setMsg(t.noSession);
-          setReady(false);
+        if (s0.session) {
+          setReady(true);
           return;
         }
 
-        setReady(true);
-        return;
-      }
+        // 1) اگر code داریم (PKCE)
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (cancelled) return;
+          if (error) {
+            console.error("exchangeCodeForSession error:", error);
+          } else {
+            const { data: s1 } = await supabase.auth.getSession();
+            if (!cancelled && s1.session) setReady(true);
+            if (!cancelled && !s1.session) setMsg(t.noSession);
+            return;
+          }
+        }
 
-      // 2) حالت token_hash + type=recovery
-      // Supabase برای recovery معمولاً type=recovery می‌فرستد
-      if (token_hash) {
-        const otpType = (type === "recovery" ? "recovery" : "recovery") as any;
+        // 2) اگر token_hash داریم (OTP recovery)
+        if (token_hash) {
+          const otpType = (type === "recovery" ? "recovery" : "recovery") as any;
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash,
+            type: otpType,
+          });
+          if (cancelled) return;
+          if (error) {
+            console.error("verifyOtp error:", error);
+          } else {
+            const { data: s2 } = await supabase.auth.getSession();
+            if (!cancelled && s2.session) setReady(true);
+            if (!cancelled && !s2.session) setMsg(t.noSession);
+            return;
+          }
+        }
 
-        const { error } = await supabase.auth.verifyOtp({
-          token_hash,
-          type: otpType,
-        });
+        // 3) اگر هیچکدوم نبود، احتمالاً تو hash هست (مخصوصاً موبایل)
+        const hp = parseHashParams();
+        const access_token = hp.get("access_token");
+        const refresh_token = hp.get("refresh_token");
+        const hashType = hp.get("type");
 
-        if (cancelled) return;
+        if (access_token && refresh_token && (hashType === "recovery" || !hashType)) {
+          const { error } = await supabase.auth.setSession({
+            access_token,
+            refresh_token,
+          });
 
-        if (error) {
-          console.error("verifyOtp error:", error);
-          setMsg(t.noSession);
-          setReady(false);
+          if (cancelled) return;
+
+          if (error) {
+            console.error("setSession error:", error);
+            setMsg(t.noSession);
+            return;
+          }
+
+          // تمیزکاری URL (اختیاری ولی خوب)
+          try {
+            window.history.replaceState(
+              {},
+              document.title,
+              window.location.pathname + window.location.search
+            );
+          } catch {}
+
+          setReady(true);
           return;
         }
 
-        setReady(true);
-        return;
+        // اگر هیچ چیزی پیدا نشد
+        setMsg(t.noSession);
+      } finally {
+        if (!cancelled) setVerifying(false);
       }
     })();
 
@@ -161,8 +209,10 @@ export default function ResetPasswordPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, token_hash, type, supabase, uiLang]);
 
-  // اگر هیچ توکنی نیست
-  if (!code && !token_hash) {
+  const hasAnyResetHint =
+    !!code || !!token_hash || (typeof window !== "undefined" && !!window.location.hash);
+
+  if (!hasAnyResetHint) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <Card className="max-w-md w-full">
@@ -190,12 +240,6 @@ export default function ResetPasswordPage() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // اجازه تایپ می‌دیم، ولی بدون session ذخیره نمی‌کنیم
-    if (!ready) {
-      setMsg(t.noSession);
-      return;
-    }
-
     if (password !== confirm) {
       setMsg(t.mismatch);
       return;
@@ -203,6 +247,14 @@ export default function ResetPasswordPage() {
 
     setLoading(true);
     setMsg(null);
+
+    // ✅ دوباره session رو چک کن (روی موبایل خیلی مهمه)
+    const { data: s } = await supabase.auth.getSession();
+    if (!s.session) {
+      setMsg(t.noSession);
+      setLoading(false);
+      return;
+    }
 
     const { error } = await supabase.auth.updateUser({ password });
 
@@ -213,7 +265,6 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    // تمیزکاری
     await supabase.auth.signOut();
 
     setMsg(t.success);
@@ -259,7 +310,7 @@ export default function ResetPasswordPage() {
                 minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                disabled={loading} // ✅ فقط موقع ذخیره قفل کن، نه تا وقتی ready بشه
+                disabled={loading}
                 autoComplete="new-password"
               />
             </div>
@@ -272,17 +323,22 @@ export default function ResetPasswordPage() {
                 minLength={6}
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
-                disabled={loading} // ✅ همین
+                disabled={loading}
                 autoComplete="new-password"
               />
             </div>
 
+            {/* ✅ دکمه فقط موقع ذخیره غیرفعال میشه */}
             <Button className="w-full" disabled={loading}>
               {loading ? t.saving : t.save}
             </Button>
 
-            {!ready && !msg && (
+            {verifying && !msg && (
               <p className="text-xs text-muted-foreground">{t.verifying}</p>
+            )}
+
+            {!verifying && !ready && !msg && (
+              <p className="text-xs text-muted-foreground">{t.noSession}</p>
             )}
           </form>
 
