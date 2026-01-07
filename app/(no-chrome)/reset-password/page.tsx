@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { createEmailCallbackSupabaseClient } from "@/lib/supabase/email-callback-client";
 
 type Lang = "en" | "es";
 const L = (v: any): Lang => (v === "es" ? "es" : "en");
@@ -112,7 +113,8 @@ export default function ResetPasswordPage() {
   const t = copy[uiLang];
 
   // ✅ مهم: کلاینت Supabase ثابت
-  const supabase = useMemo(() => createSupabaseClient(), []);
+
+  const supabase = useMemo(() => createEmailCallbackSupabaseClient(), []);
 
   // query params
   const code = sp.get("code");
@@ -206,7 +208,11 @@ export default function ResetPasswordPage() {
         const hashType = normalizeOtpType(hp.get("type")); // invite یا recovery
 
         // ✅ هم invite هم recovery را قبول کن
-        if (access_token && refresh_token && (hashType === "invite" || hashType === "recovery" || !hashType)) {
+        if (
+          access_token &&
+          refresh_token &&
+          (hashType === "invite" || hashType === "recovery" || !hashType)
+        ) {
           const { error } = await supabase.auth.setSession({
             access_token,
             refresh_token,
