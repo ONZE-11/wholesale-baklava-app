@@ -319,6 +319,8 @@ export const translations = {
       "Your order has been placed successfully. Thank you for shopping with us!",
     "success.order_number": "Order Number",
     "success.back_home": "Back to Home",
+    "success": "Password reset successfully! Redirecting to login...",
+
 
     //Orders
     your_orders: "Your Orders",
@@ -673,6 +675,8 @@ export const translations = {
       "Su pedido se ha realizado con éxito. ¡Gracias por comprar con nosotros!",
     "success.order_number": "Número de Pedido",
     "success.back_home": "Volver al Inicio",
+    "success": "¡Contraseña restablecida correctamente! Redirigiendo al inicio de sesión...",
+
 
     //Orders
     your_orders: "Tus pedidos",
