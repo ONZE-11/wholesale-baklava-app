@@ -1,4 +1,5 @@
 "use client";
+//admin/products/page.tsx
 
 import { useEffect, useState } from "react";
 import { t } from "@/lib/i18n";
