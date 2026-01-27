@@ -1,4 +1,5 @@
 "use client";
+//products/[id]/page.tsx
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
