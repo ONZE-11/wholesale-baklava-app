@@ -208,15 +208,16 @@ export default function HomePage() {
       </section>
 
       <section className="py-24 bg-gradient-to-b from-background to-muted/30">
+      
         <div className="container mx-auto px-4">
           <div className="text-center mb-16 animate-in fade-in slide-in-from-bottom duration-700">
             <h2 className="text-4xl lg:text-5xl font-bold mb-4 text-balance">
-              {lang === "es" ? "¿Por Qué Elegirnos?" : "Why Choose Us?"}
+              {lang === "es" ? "¿Porque elegirnos ?" : "Why Choose Us?"}
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto text-pretty">
               {lang === "es"
-                ? "Comprometidos con la excelencia en cada aspecto de nuestro servicio"
-                : "Committed to excellence in every aspect of our service"}
+                ? "Fabricamos baklava de alta calidad,cuidando cada detalle"
+                : "We manufacture high-quality baklava, taking care of every detail"}
             </p>
           </div>
 

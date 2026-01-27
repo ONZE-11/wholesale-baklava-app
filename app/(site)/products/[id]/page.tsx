@@ -18,12 +18,19 @@ import { useCart } from "@/lib/cart-context";
 import { useLanguage } from "@/lib/language-context";
 import { useToast } from "@/hooks/use-toast";
 
+import { normalize, parseRaw, type QuantityRules } from "@/lib/quantity";
+
 type Product = {
   id: string | number;
   price: number;
   unit: string;
   image_url: string;
   min_order_quantity: number;
+
+  // ✅ new optional order policy columns (may be null)
+  order_step_qty?: number | null;
+  order_multiple_of?: number | null;
+  order_multiple_mode?: "none" | "floor" | "ceil" | "nearest" | null;
 
   // localized fields (dynamic)
   [key: string]: any;
@@ -38,13 +45,6 @@ function isProfileIncomplete(p: any) {
     !p?.city ||
     !p?.country
   );
-}
-
-function parseQuantity(raw: string, minQ: number) {
-  const cleaned = (raw ?? "").replace(/[^\d]/g, "");
-  const n = cleaned ? Number(cleaned) : NaN;
-  if (!Number.isFinite(n)) return minQ;
-  return Math.max(minQ, Math.floor(n));
 }
 
 type ErrorKey = "not_found" | "load_failed";
@@ -181,10 +181,32 @@ export default function ProductDetailsPage() {
 
   const minQuantity = product?.min_order_quantity ?? 1;
 
+  // ✅ rules: قابل تنظیم + fallback به min_order_quantity
+  const rules: QuantityRules | null = useMemo(() => {
+    if (!product) return null;
+
+    const min = Number(product.min_order_quantity ?? 1);
+    const step = Number(product.order_step_qty ?? min);
+
+    // پیش‌فرض: مضرب min (اگر order_multiple_of null بود)
+    const multipleOf =
+      product.order_multiple_of != null ? Number(product.order_multiple_of) : min;
+
+    const mode =
+      (product.order_multiple_mode ?? "ceil") as any;
+
+    return {
+      min,
+      step,
+      multipleOf,
+      mode,
+    };
+  }, [product]);
+
   const handleAddToCart = () => {
     if (!product || !localized) return;
 
-    const q = parseQuantity(quantityInput, minQuantity);
+    const q = rules ? parseRaw(quantityInput, rules) : minQuantity;
 
     addItem({
       productId: String(product.id),
@@ -193,7 +215,15 @@ export default function ProductDetailsPage() {
       quantity: q,
       unit: product.unit,
       imageUrl: product.image_url,
+
+      // ✅ keep original
       min_order_quantity: minQuantity,
+
+      // ✅ pass order policy to cart so Cart page can behave the same
+      order_step_qty: product.order_step_qty ?? minQuantity,
+      order_multiple_of:
+        product.order_multiple_of != null ? product.order_multiple_of : minQuantity,
+      order_multiple_mode: product.order_multiple_mode ?? "ceil",
     });
 
     toast({
@@ -294,8 +324,9 @@ export default function ProductDetailsPage() {
                             size="icon"
                             className="h-10 w-10 shrink-0"
                             onClick={() => {
-                              const current = parseQuantity(quantityInput, minQuantity);
-                              const next = Math.max(minQuantity, current - 1);
+                              if (!rules) return;
+                              const current = parseRaw(quantityInput, rules);
+                              const next = normalize(current - rules.step, rules);
                               setQuantityInput(String(next));
                             }}
                             aria-label="Decrease quantity"
@@ -310,7 +341,8 @@ export default function ProductDetailsPage() {
                             value={quantityInput}
                             onChange={(e) => setQuantityInput(e.target.value)}
                             onBlur={() => {
-                              const q = parseQuantity(quantityInput, minQuantity);
+                              if (!rules) return;
+                              const q = parseRaw(quantityInput, rules);
                               setQuantityInput(String(q));
                             }}
                             className="h-10 w-28 text-center"
@@ -323,8 +355,10 @@ export default function ProductDetailsPage() {
                             size="icon"
                             className="h-10 w-10 shrink-0"
                             onClick={() => {
-                              const current = parseQuantity(quantityInput, minQuantity);
-                              setQuantityInput(String(current + 1));
+                              if (!rules) return;
+                              const current = parseRaw(quantityInput, rules);
+                              const next = normalize(current + rules.step, rules);
+                              setQuantityInput(String(next));
                             }}
                             aria-label="Increase quantity"
                           >

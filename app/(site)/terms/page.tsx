@@ -190,8 +190,8 @@ export default function TermsPage() {
             </p>
             <p>
               Email:{" "}
-              <a href="mailto:mairesmaster@gmail.com" className="text-primary hover:underline">
-                mairesmaster@gmail.com
+              <a href="mailto:baklavavalencia@gmail.com" className="text-primary hover:underline">
+                baklavavalencia@gmail.com
               </a>
             </p>
             <p>

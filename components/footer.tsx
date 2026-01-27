@@ -71,10 +71,10 @@ export function Footer() {
               <div className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-primary" />
                 <a
-                  href="mailto:mairesmaster@gmail.com"
+                  href="mailto:baklavavalencia@gmail.com"
                   className="hover:text-primary"
                 >
-                  mairesmaster@gmail.com
+                  baklavavalencia@gmail.com
                 </a>
               </div>
 

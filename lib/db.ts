@@ -2,7 +2,8 @@
 import { prisma } from "@/lib/prisma";
 
 type ApprovalStatus = "pending" | "approved" | "rejected";
-type PaymentStatus = "unpaid" | "paid" | "failed";
+export type PaymentStatus = "pending" | "unpaid" | "paid" | "failed";
+
 
 export const db = {
   users: {

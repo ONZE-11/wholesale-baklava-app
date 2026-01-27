@@ -97,7 +97,7 @@ export default function FAQPage() {
             </a>
 
             <a
-              href="mailto:mairesmaster@gmail.com"
+              href="mailto:baklavavalencia@gmail.com"
               className="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
             >
               {t("faq.send_email", lang)}

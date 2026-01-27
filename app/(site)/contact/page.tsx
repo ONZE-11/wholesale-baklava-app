@@ -26,10 +26,10 @@ export default function ContactPage() {
                     {lang === "es" ? "Correo Electrónico" : "Email"}
                   </h3>
                   <a
-                    href="mailto:mairesmaster@gmail.com"
+                    href="mailto:baklavavalencia@gmail.com"
                     className="text-primary hover:underline"
                   >
-                    mairesmaster@gmail.com
+                    baklavavalencia@gmail.com
                   </a>
                 </div>
               </div>

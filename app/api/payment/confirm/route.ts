@@ -1,33 +1,26 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import Stripe from "stripe";
+import { db } from "@/lib/db";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-12-15.clover",
 });
 
-export function createClient() {
+function createSupabase() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!; // یا ANON KEY بسته به نیاز
-  return createSupabaseClient(supabaseUrl, supabaseKey);
+  // ✅ برای verify user باید ANON استفاده کنی، نه service role
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  return createSupabaseClient(supabaseUrl, supabaseAnonKey, {
+    auth: { persistSession: false },
+  });
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
-
-    const {
-      data: { user: authUser },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !authUser) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { paymentIntentId, orderId } = body;
+    const body = await request.json().catch(() => null);
+    const paymentIntentId = body?.paymentIntentId;
+    const orderId = body?.orderId;
 
     if (!paymentIntentId || !orderId) {
       return NextResponse.json(
@@ -36,28 +29,53 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ✅ Auth: از Bearer token (اگر فرانت می‌فرسته)
+    // اگر نمی‌فرستی، این بخش را موقتاً حذف کن ولی بهتره حتماً داشته باشی.
+    const authHeader = request.headers.get("authorization") || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+    if (!token) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const supabase = createSupabase();
+    const { data, error: authError } = await supabase.auth.getUser(token);
+
+    const authUser = data?.user;
+    if (authError || !authUser) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    // ✅ (پیشنهادی) سفارش باید متعلق به همین user باشد
+    // اگر db.orders.getById داری، فعالش کن:
+    // const order = await db.orders.getById(orderId);
+    // if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    // if (order.user_id !== authUser.id) {
+    //   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // }
+
     // Verify payment intent with Stripe
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
     if (paymentIntent.status === "succeeded") {
-      // Update order payment status
-      await db.orders.updatePaymentStatus(orderId, "paid", paymentIntentId);
+      // ✅ فقط 2 آرگومان (مطابق تایپ فعلی db)
+      await db.orders.updatePaymentStatus(orderId, "paid");
 
       return NextResponse.json({
         success: true,
         message: "Payment confirmed successfully",
       });
-    } else {
-      return NextResponse.json({
-        success: false,
-        message: "Payment not completed",
-        status: paymentIntent.status,
-      });
     }
+
+    return NextResponse.json({
+      success: false,
+      message: "Payment not completed",
+      status: paymentIntent.status,
+    });
   } catch (error: any) {
-    console.error("[v0] Confirm payment error:", error);
+    console.error("[confirm payment] error:", error);
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: error?.message || "Internal server error" },
       { status: 500 }
     );
   }

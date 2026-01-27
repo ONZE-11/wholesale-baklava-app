@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,10 +12,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useLanguage } from "@/lib/language-context";
 
-function clampInt(n: number, min: number) {
-  if (!Number.isFinite(n)) return min;
-  return Math.max(min, Math.floor(n));
-}
+import { normalize, parseRaw, type QuantityRules } from "@/lib/quantity";
 
 function QuantityInput({
   item,
@@ -26,6 +23,15 @@ function QuantityInput({
 }) {
   const minQ = item.min_order_quantity ?? 1;
 
+  // ✅ rules قابل تنظیم + fallback به min_order_quantity
+  const rules: QuantityRules = {
+    min: Number(minQ),
+    step: Number(item.order_step_qty ?? minQ),
+    // اگر تنظیم نشده، پیش‌فرض: مضرب min
+    multipleOf: item.order_multiple_of != null ? Number(item.order_multiple_of) : Number(minQ),
+    mode: ((item.order_multiple_mode ?? "ceil") as any) ?? "ceil",
+  };
+
   // متن خام برای اینکه کاربر بتونه راحت تایپ کنه (مثل 536)
   const [raw, setRaw] = useState<string>(String(item.quantity ?? minQ));
 
@@ -35,12 +41,12 @@ function QuantityInput({
   }, [item.quantity, minQ]);
 
   const commit = (value: number) => {
-    const finalValue = clampInt(value, minQ);
+    const finalValue = normalize(value, rules);
     updateQuantity(item.productId, finalValue);
     setRaw(String(finalValue));
   };
 
-  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onChange = (e: ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value;
     // اجازه بده خالی بشه تا کاربر دوباره تایپ کنه
     if (v === "") {
@@ -55,20 +61,23 @@ function QuantityInput({
   const onBlur = () => {
     // وقتی کاربر خارج شد، اگر خالی بود حداقل
     if (raw.trim() === "") {
-      commit(minQ);
+      commit(rules.min);
       return;
     }
-    commit(Number(raw));
+    // ✅ اینجا هم مضرب/حداقل/قواعد اعمال میشه
+    const finalValue = parseRaw(raw, rules);
+    updateQuantity(item.productId, finalValue);
+    setRaw(String(finalValue));
   };
 
   const inc = () => {
-    const current = raw.trim() === "" ? minQ : Number(raw);
-    commit((Number.isFinite(current) ? current : minQ) + 1);
+    const current = parseRaw(raw, rules);
+    commit(current + rules.step);
   };
 
   const dec = () => {
-    const current = raw.trim() === "" ? minQ : Number(raw);
-    commit((Number.isFinite(current) ? current : minQ) - 1);
+    const current = parseRaw(raw, rules);
+    commit(current - rules.step);
   };
 
   return (
@@ -111,7 +120,7 @@ function QuantityInput({
 
       {/* نمایش حداقل */}
       <span className="hidden sm:inline text-xs text-muted-foreground">
-        min {minQ}
+        min {rules.min}
       </span>
     </div>
   );

@@ -31,15 +31,15 @@ export const translations = {
     "nav.settings": "Settings",
 
     // Home
-    "home.hero.title": "Premium Wholesale Baklava",
-    "home.hero.subtitle": "Authentic Mediterranean sweetness for your business",
+    "home.hero.title": "Wholesale Premium Baklava",
+    "home.hero.subtitle": "Honey and nut cakes",
     "home.hero.cta": "View Catalog",
     "home.features.quality": "Premium Quality",
     "home.features.quality.desc": "Made with the finest ingredients",
     "home.features.wholesale": "Wholesale Prices",
     "home.features.wholesale.desc": "Competitive rates for large orders",
     "home.features.delivery": "Fast Shipping",
-    "home.features.delivery.desc": "Reliable delivery throughout Europe",
+    "home.features.delivery.desc": "Reliable delivery throughout Spain",
     "home.features.certification": "B2B Certification",
     "home.features.certification.desc": "Only verified companies",
 
@@ -246,7 +246,7 @@ export const translations = {
       "Everything you need to know about ordering wholesale baklava",
     "faq.q1": "What is the minimum order quantity?",
     "faq.a1":
-      "Our minimum order is 50 pieces per variety. For mixed orders, the total must be at least 100 pieces.",
+      "The first order must include at least 1 tray of baklava containing 24 pieces of baklava.",
     "faq.q2": "How long does delivery take?",
     "faq.a2":
       "Delivery within Spain takes 2-3 business days. For other European countries, it typically takes 5-7 business days.",
@@ -306,7 +306,7 @@ export const translations = {
     "product.details": "Product Details",
     "product.description": "Description",
     "product.specifications": "Specifications",
-    "product.ingredients": "Ingredients",
+    "product.ingredients": "INGREDIENTS",
     "product.storage": "Storage Instructions",
     "product.shelf_life": "Shelf Life",
     "product.packaging": "Packaging",
@@ -384,15 +384,15 @@ export const translations = {
     "nav.settings": "Configuración",
 
     // Home
-    "home.hero.title": "Baklava Premium al Por Mayor",
-    "home.hero.subtitle": "Dulzura mediterránea auténtica para su negocio",
+    "home.hero.title": "Venta de Baklava Premium Al por mayor",
+    "home.hero.subtitle": "Pasteles de miel y frutos secos",
     "home.hero.cta": "Ver Catálogo",
     "home.features.quality": "Calidad Premium",
     "home.features.quality.desc": "Elaborados con los mejores ingredientes",
     "home.features.wholesale": "Precios Mayoristas",
     "home.features.wholesale.desc": "Tarifas competitivas para pedidos grandes",
     "home.features.delivery": "Envío Rápido",
-    "home.features.delivery.desc": "Entrega fiable en toda Europa",
+    "home.features.delivery.desc": "Entrega fiable en toda España",
     "home.features.certification": "Certificación B2B",
     "home.features.certification.desc": "Solo empresas verificadas",
 
@@ -600,7 +600,7 @@ export const translations = {
       "Todo lo que necesitas saber sobre pedidos de baklava al por mayor",
     "faq.q1": "¿Cuál es la cantidad mínima de pedido?",
     "faq.a1":
-      "Nuestro pedido mínimo es de 50 piezas por variedad. Para pedidos mixtos, el total debe ser de al menos 100 piezas.",
+      "El primer pedido debe incluir al menos 1 bandeja de baklava que contenga 24 unidades de baklava.",
     "faq.q2": "¿Cuánto tiempo tarda la entrega?",
     "faq.a2":
       "La entrega dentro de España tarda 2-3 días hábiles. Para otros países europeos, generalmente tarda 5-7 días hábiles.",
@@ -661,7 +661,7 @@ export const translations = {
     "product.details": "Detalles del Producto",
     "product.description": "Descripción",
     "product.specifications": "Especificaciones",
-    "product.ingredients": "Ingredientes",
+    "product.ingredients": "INGREDIENTES",
     "product.storage": "Instrucciones de Almacenamiento",
     "product.shelf_life": "Vida Útil",
     "product.packaging": "Embalaje",

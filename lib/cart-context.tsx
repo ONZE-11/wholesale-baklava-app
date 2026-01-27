@@ -11,14 +11,19 @@ import {
 
 // ---------------- CartItem interface ----------------
 export interface CartItem {
-  // id: string
   productId: string;
   name: string;
   price: number;
   quantity: number;
   unit: string;
   imageUrl: string;
+
   min_order_quantity: number;
+
+  // ✅ order policy (optional)
+  order_step_qty?: number | null;
+  order_multiple_of?: number | null;
+  order_multiple_mode?: "none" | "floor" | "ceil" | "nearest" | null;
 }
 
 // ---------------- Context type ----------------
@@ -62,14 +67,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const addItem = (item: CartItem) => {
     setItems((prevItems) => {
       const existingItem = prevItems.find(
-        (i) => i.productId === item.productId
+        (i) => i.productId === item.productId,
       );
 
       if (existingItem) {
         // اگر محصول موجود است، مقدار واقعی کاربر را اضافه کن (بدون محدودیت min_order_quantity)
         const newQuantity = existingItem.quantity + item.quantity;
         return prevItems.map((i) =>
-          i.productId === item.productId ? { ...i, quantity: newQuantity } : i
+          i.productId === item.productId ? { ...i, quantity: newQuantity } : i,
         );
       }
 
@@ -89,8 +94,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       prevItems.map((i) =>
         i.productId === productId
           ? { ...i, quantity: Math.max(quantity, i.min_order_quantity) }
-          : i
-      )
+          : i,
+      ),
     );
   };
 
@@ -111,7 +116,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = items.reduce(
     (sum, item) => sum + item.price * item.quantity,
-    0
+    0,
   );
 
   return (

@@ -1,40 +1,42 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { useCart } from "@/lib/cart-context"
-import { useSearchParams } from "next/navigation"
-import { t } from "@/lib/i18n"
-import { useToast } from "@/hooks/use-toast"
+import { Button } from "@/components/ui/button";
+import { useCart } from "@/lib/cart-context";
+import { useSearchParams } from "next/navigation";
+import { t } from "@/lib/i18n";
+import { useToast } from "@/hooks/use-toast";
 
 interface AddToCartButtonProps {
-  product: any
+  product: any;
 }
 
 export function AddToCartButton({ product }: AddToCartButtonProps) {
-  const searchParams = useSearchParams()
-  const lang = (searchParams.get("lang") as "en" | "es") || "es"
-  const { addItem } = useCart()
-  const { toast } = useToast()
+  const searchParams = useSearchParams();
+  const lang = (searchParams.get("lang") as "en" | "es") || "es";
+  const { addItem } = useCart();
+  const { toast } = useToast();
 
   const handleAddToCart = () => {
-   addItem({
-  productId: product.id, // ✅ همانطور که CartItem تعریف شده
-  name: lang === "es" ? product.name_es : product.name_en,
-  price: product.price,
-  quantity: product.min_order_quantity || 1,
-  imageUrl: product.image_url, // ✅ مطابق CartItem
-  unit: product.unit,
-})
+    const minQ = product?.min_order_quantity ?? 1;
 
+    addItem({
+      productId: String(product.id),
+      name: lang === "es" ? product.name_es : product.name_en,
+      price: product.price,
+      quantity: minQ,
+      imageUrl: product.image_url,
+      unit: product.unit,
+      min_order_quantity: minQ, // ✅ اضافه شد
+    });
 
     toast({
       title: lang === "es" ? "Producto agregado" : "Product added",
       description:
         lang === "es"
-          ? `${lang === "es" ? product.name_es : product.name_en} se agregó a su carrito`
-          : `${lang === "en" ? product.name_es : product.name_en} was added to your cart`,
-    })
-  }
+          ? `${product.name_es} se agregó a su carrito`
+          : `${product.name_en} was added to your cart`,
+    });
+  };
 
   return (
     <Button
@@ -44,5 +46,5 @@ export function AddToCartButton({ product }: AddToCartButtonProps) {
     >
       {t("products.add_to_cart", lang)}
     </Button>
-  )
+  );
 }

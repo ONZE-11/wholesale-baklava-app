@@ -34,7 +34,11 @@ export default function AboutPage() {
     if (!isAuthenticated) {
       return (
         <Link href={`/register`}>
-          <Button size="lg" variant="secondary" className="text-lg px-10 shadow-xl">
+          <Button
+            size="lg"
+            variant="secondary"
+            className="text-lg px-10 shadow-xl"
+          >
             {t("auth.register.button", lang)}
           </Button>
         </Link>
@@ -44,7 +48,11 @@ export default function AboutPage() {
     if (approvalStatus === "approved") {
       return (
         <Link href={`/products`}>
-          <Button size="lg" variant="secondary" className="text-lg px-10 shadow-xl">
+          <Button
+            size="lg"
+            variant="secondary"
+            className="text-lg px-10 shadow-xl"
+          >
             {lang === "es" ? "Ver productos" : "View products"}
           </Button>
         </Link>
@@ -53,7 +61,11 @@ export default function AboutPage() {
 
     return (
       <Link href={`/dashboard`}>
-        <Button size="lg" variant="secondary" className="text-lg px-10 shadow-xl">
+        <Button
+          size="lg"
+          variant="secondary"
+          className="text-lg px-10 shadow-xl"
+        >
           {lang === "es" ? "Ir al panel" : "Go to dashboard"}
         </Button>
       </Link>
@@ -137,27 +149,38 @@ export default function AboutPage() {
               </p>
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center p-4 bg-muted/50 rounded-lg">
-                  <div className="text-3xl font-bold text-primary mb-1">20+</div>
+                  <div className="text-3xl font-bold text-primary mb-1">
+                    +20
+                  </div>
                   <div className="text-sm text-muted-foreground">
                     {lang === "es" ? "Años" : "Years"}
                   </div>
                 </div>
+
                 <div className="text-center p-4 bg-muted/50 rounded-lg">
-                  <div className="text-3xl font-bold text-primary mb-1">500+</div>
+                  <div className="text-3xl font-bold text-primary mb-1">
+                    +100
+                  </div>
                   <div className="text-sm text-muted-foreground">
                     {lang === "es" ? "Clientes" : "Clients"}
                   </div>
                 </div>
+
                 <div className="text-center p-4 bg-muted/50 rounded-lg">
-                  <div className="text-3xl font-bold text-primary mb-1">50+</div>
+                  <div className="text-3xl font-bold text-primary mb-1">
+                    +20
+                  </div>
                   <div className="text-sm text-muted-foreground">
                     {lang === "es" ? "Productos" : "Products"}
                   </div>
                 </div>
+
                 <div className="text-center p-4 bg-muted/50 rounded-lg">
-                  <div className="text-3xl font-bold text-primary mb-1">15</div>
+                  <div className="text-3xl font-bold text-primary mb-1">
+                    +15
+                  </div>
                   <div className="text-sm text-muted-foreground">
-                    {lang === "es" ? "Países" : "Countries"}
+                    {lang === "es" ? "Ciudades" : "Cities"}
                   </div>
                 </div>
               </div>
@@ -181,8 +204,12 @@ export default function AboutPage() {
                 <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary/60 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                   <Award className="h-8 w-8 text-primary-foreground" />
                 </div>
-                <h3 className="text-xl font-bold mb-2">{t("about.values.quality", lang)}</h3>
-                <p className="text-muted-foreground text-sm">{t("about.values.quality.desc", lang)}</p>
+                <h3 className="text-xl font-bold mb-2">
+                  {t("about.values.quality", lang)}
+                </h3>
+                <p className="text-muted-foreground text-sm">
+                  {t("about.values.quality.desc", lang)}
+                </p>
               </CardContent>
             </Card>
 
@@ -191,7 +218,9 @@ export default function AboutPage() {
                 <div className="w-16 h-16 bg-gradient-to-br from-accent to-accent/60 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                   <Heart className="h-8 w-8 text-primary-foreground" />
                 </div>
-                <h3 className="text-xl font-bold mb-2">{t("about.values.authenticity", lang)}</h3>
+                <h3 className="text-xl font-bold mb-2">
+                  {t("about.values.authenticity", lang)}
+                </h3>
                 <p className="text-muted-foreground text-sm">
                   {t("about.values.authenticity.desc", lang)}
                 </p>
@@ -203,8 +232,12 @@ export default function AboutPage() {
                 <div className="w-16 h-16 bg-gradient-to-br from-secondary to-secondary/60 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                   <Users className="h-8 w-8 text-secondary-foreground" />
                 </div>
-                <h3 className="text-xl font-bold mb-2">{t("about.values.service", lang)}</h3>
-                <p className="text-muted-foreground text-sm">{t("about.values.service.desc", lang)}</p>
+                <h3 className="text-xl font-bold mb-2">
+                  {t("about.values.service", lang)}
+                </h3>
+                <p className="text-muted-foreground text-sm">
+                  {t("about.values.service.desc", lang)}
+                </p>
               </CardContent>
             </Card>
 
@@ -213,7 +246,9 @@ export default function AboutPage() {
                 <div className="w-16 h-16 bg-gradient-to-br from-primary to-accent rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                   <Leaf className="h-8 w-8 text-primary-foreground" />
                 </div>
-                <h3 className="text-xl font-bold mb-2">{t("about.values.sustainability", lang)}</h3>
+                <h3 className="text-xl font-bold mb-2">
+                  {t("about.values.sustainability", lang)}
+                </h3>
                 <p className="text-muted-foreground text-sm">
                   {t("about.values.sustainability.desc", lang)}
                 </p>
@@ -238,8 +273,12 @@ export default function AboutPage() {
                 <TrendingUp className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h3 className="text-xl font-bold mb-2">{t("about.why.experience", lang)}</h3>
-                <p className="text-muted-foreground">{t("about.why.experience.desc", lang)}</p>
+                <h3 className="text-xl font-bold mb-2">
+                  {t("about.why.experience", lang)}
+                </h3>
+                <p className="text-muted-foreground">
+                  {t("about.why.experience.desc", lang)}
+                </p>
               </div>
             </div>
 
@@ -248,8 +287,12 @@ export default function AboutPage() {
                 <Package className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h3 className="text-xl font-bold mb-2">{t("about.why.capacity", lang)}</h3>
-                <p className="text-muted-foreground">{t("about.why.capacity.desc", lang)}</p>
+                <h3 className="text-xl font-bold mb-2">
+                  {t("about.why.capacity", lang)}
+                </h3>
+                <p className="text-muted-foreground">
+                  {t("about.why.capacity.desc", lang)}
+                </p>
               </div>
             </div>
 
@@ -258,8 +301,12 @@ export default function AboutPage() {
                 <Globe className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h3 className="text-xl font-bold mb-2">{t("about.why.delivery", lang)}</h3>
-                <p className="text-muted-foreground">{t("about.why.delivery.desc", lang)}</p>
+                <h3 className="text-xl font-bold mb-2">
+                  {t("about.why.delivery", lang)}
+                </h3>
+                <p className="text-muted-foreground">
+                  {t("about.why.delivery.desc", lang)}
+                </p>
               </div>
             </div>
 
@@ -268,8 +315,12 @@ export default function AboutPage() {
                 <HeadphonesIcon className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h3 className="text-xl font-bold mb-2">{t("about.why.support", lang)}</h3>
-                <p className="text-muted-foreground">{t("about.why.support.desc", lang)}</p>
+                <h3 className="text-xl font-bold mb-2">
+                  {t("about.why.support", lang)}
+                </h3>
+                <p className="text-muted-foreground">
+                  {t("about.why.support.desc", lang)}
+                </p>
               </div>
             </div>
           </div>
