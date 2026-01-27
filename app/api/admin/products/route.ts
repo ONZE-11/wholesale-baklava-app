@@ -15,6 +15,11 @@ export async function GET() {
         name_es,
         price,
         min_order_quantity,
+
+        order_step_qty,
+        order_multiple_of,
+        order_multiple_mode,
+
         packaging_en,
         packaging_es,
         shelf_life_en,
@@ -52,17 +57,26 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    const updateData: Record<string, any> = {};
-    for (const key of [
+    // ✅ allowlist fields (old + new)
+    const allowedKeys = [
       "name_en",
       "name_es",
       "price",
       "min_order_quantity",
+
+      "order_step_qty",
+      "order_multiple_of",
+      "order_multiple_mode",
+
       "packaging_en",
       "packaging_es",
       "shelf_life_en",
       "shelf_life_es",
-    ]) {
+    ] as const;
+
+    const updateData: Record<string, any> = {};
+
+    for (const key of allowedKeys) {
       if (body[key] !== undefined) {
         updateData[key] = body[key];
       }
@@ -81,6 +95,11 @@ export async function PUT(req: NextRequest) {
         name_es,
         price,
         min_order_quantity,
+
+        order_step_qty,
+        order_multiple_of,
+        order_multiple_mode,
+
         packaging_en,
         packaging_es,
         shelf_life_en,

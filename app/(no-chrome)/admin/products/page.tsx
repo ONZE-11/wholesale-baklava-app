@@ -4,16 +4,24 @@ import { useEffect, useState } from "react";
 import { t } from "@/lib/i18n";
 import { useLanguage } from "@/lib/language-context";
 
+type MultipleMode = "none" | "floor" | "ceil" | "nearest";
+
 type Product = {
   id: string;
   name_en: string | null;
   name_es: string | null;
   price: number | null;
   min_order_quantity: number | null;
+
   packaging_en: string | null;
   packaging_es: string | null;
   shelf_life_en: string | null;
   shelf_life_es: string | null;
+
+  // ✅ order policy columns
+  order_step_qty?: number | null;
+  order_multiple_of?: number | null;
+  order_multiple_mode?: MultipleMode | null;
 };
 
 export default function AdminProductsPage() {
@@ -41,7 +49,13 @@ export default function AdminProductsPage() {
       name_en: p.name_en ?? "",
       name_es: p.name_es ?? "",
       price: p.price ?? 0,
-      min_order_quantity: p.min_order_quantity ?? 0,
+      min_order_quantity: p.min_order_quantity ?? 1,
+
+      // ✅ policy
+      order_step_qty: p.order_step_qty ?? null,
+      order_multiple_of: p.order_multiple_of ?? null,
+      order_multiple_mode: (p.order_multiple_mode ?? "none") as MultipleMode,
+
       packaging_en: p.packaging_en ?? "",
       packaging_es: p.packaging_es ?? "",
       shelf_life_en: p.shelf_life_en ?? "",
@@ -49,11 +63,36 @@ export default function AdminProductsPage() {
     });
   }
 
+  function toNullableInt(v: any): number | null {
+    if (v === "" || v == null) return null;
+    const n = Number(v);
+    if (!Number.isFinite(n)) return null;
+    return Math.floor(n);
+  }
+
   async function save(id: string) {
+    // ✅ sanitize payload so DB actually changes
+    const payload = {
+      id,
+      name_en: (form.name_en ?? "").toString(),
+      name_es: (form.name_es ?? "").toString(),
+      price: Number(form.price ?? 0),
+      min_order_quantity: toNullableInt(form.min_order_quantity) ?? 1,
+
+      order_step_qty: toNullableInt(form.order_step_qty),
+      order_multiple_of: toNullableInt(form.order_multiple_of),
+      order_multiple_mode: (form.order_multiple_mode ?? "none") as MultipleMode,
+
+      packaging_en: (form.packaging_en ?? "").toString(),
+      packaging_es: (form.packaging_es ?? "").toString(),
+      shelf_life_en: (form.shelf_life_en ?? "").toString(),
+      shelf_life_es: (form.shelf_life_es ?? "").toString(),
+    };
+
     const res = await fetch("/api/admin/products", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, ...form }),
+      body: JSON.stringify(payload),
     });
 
     const json = await res.json();
@@ -80,6 +119,12 @@ export default function AdminProductsPage() {
             <th className="border p-2">{t("admin.products.name_es", safeLang)}</th>
             <th className="border p-2 text-center">{t("admin.products.price", safeLang)}</th>
             <th className="border p-2 text-center">{t("admin.products.min_qty", safeLang)}</th>
+
+            {/* ✅ new */}
+            <th className="border p-2 text-center">Step</th>
+            <th className="border p-2 text-center">Multiple</th>
+            <th className="border p-2 text-center">Mode</th>
+
             <th className="border p-2">{t("admin.products.packaging_en", safeLang)}</th>
             <th className="border p-2">{t("admin.products.packaging_es", safeLang)}</th>
             <th className="border p-2">{t("admin.products.shelf_life_en", safeLang)}</th>
@@ -97,7 +142,7 @@ export default function AdminProductsPage() {
                 <td className="border p-2">
                   {isEditing ? (
                     <input
-                      value={form.name_en ?? ""}
+                      value={(form.name_en ?? "") as any}
                       onChange={(e) => setForm({ ...form, name_en: e.target.value })}
                       className="border p-1 w-full"
                     />
@@ -109,7 +154,7 @@ export default function AdminProductsPage() {
                 <td className="border p-2">
                   {isEditing ? (
                     <input
-                      value={form.name_es ?? ""}
+                      value={(form.name_es ?? "") as any}
                       onChange={(e) => setForm({ ...form, name_es: e.target.value })}
                       className="border p-1 w-full"
                     />
@@ -123,7 +168,7 @@ export default function AdminProductsPage() {
                     <input
                       type="number"
                       step="0.01"
-                      value={form.price ?? 0}
+                      value={(form.price ?? 0) as any}
                       onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
                       className="border p-1 w-24 mx-auto text-center"
                     />
@@ -136,10 +181,8 @@ export default function AdminProductsPage() {
                   {isEditing ? (
                     <input
                       type="number"
-                      value={form.min_order_quantity ?? 0}
-                      onChange={(e) =>
-                        setForm({ ...form, min_order_quantity: Number(e.target.value) })
-                      }
+                      value={(form.min_order_quantity ?? 1) as any}
+                      onChange={(e) => setForm({ ...form, min_order_quantity: Number(e.target.value) })}
                       className="border p-1 w-24 mx-auto text-center"
                     />
                   ) : (
@@ -147,10 +190,70 @@ export default function AdminProductsPage() {
                   )}
                 </td>
 
+                {/* ✅ Step */}
+                <td className="border p-2 text-center">
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      value={(form.order_step_qty ?? "") as any}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          order_step_qty: e.target.value === "" ? null : Number(e.target.value),
+                        })
+                      }
+                      className="border p-1 w-24 mx-auto text-center"
+                      placeholder="—"
+                    />
+                  ) : (
+                    p.order_step_qty ?? "—"
+                  )}
+                </td>
+
+                {/* ✅ Multiple */}
+                <td className="border p-2 text-center">
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      value={(form.order_multiple_of ?? "") as any}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          order_multiple_of: e.target.value === "" ? null : Number(e.target.value),
+                        })
+                      }
+                      className="border p-1 w-24 mx-auto text-center"
+                      placeholder="—"
+                    />
+                  ) : (
+                    p.order_multiple_of ?? "—"
+                  )}
+                </td>
+
+                {/* ✅ Mode */}
+                <td className="border p-2 text-center">
+                  {isEditing ? (
+                    <select
+                      value={(form.order_multiple_mode ?? "none") as any}
+                      onChange={(e) =>
+                        setForm({ ...form, order_multiple_mode: e.target.value as MultipleMode })
+                      }
+                      className="border p-1 w-28 mx-auto text-center bg-white"
+                    >
+                      <option value="none">none</option>
+                      <option value="ceil">ceil</option>
+                      <option value="floor">floor</option>
+                      <option value="nearest">nearest</option>
+                    </select>
+                  ) : (
+                    (p.order_multiple_mode ?? "—") as any
+                  )}
+                </td>
+
                 <td className="border p-2">
                   {isEditing ? (
                     <input
-                      value={form.packaging_en ?? ""}
+                      value={(form.packaging_en ?? "") as any}
                       onChange={(e) => setForm({ ...form, packaging_en: e.target.value })}
                       className="border p-1 w-full"
                     />
@@ -162,7 +265,7 @@ export default function AdminProductsPage() {
                 <td className="border p-2">
                   {isEditing ? (
                     <input
-                      value={form.packaging_es ?? ""}
+                      value={(form.packaging_es ?? "") as any}
                       onChange={(e) => setForm({ ...form, packaging_es: e.target.value })}
                       className="border p-1 w-full"
                     />
@@ -174,7 +277,7 @@ export default function AdminProductsPage() {
                 <td className="border p-2">
                   {isEditing ? (
                     <input
-                      value={form.shelf_life_en ?? ""}
+                      value={(form.shelf_life_en ?? "") as any}
                       onChange={(e) => setForm({ ...form, shelf_life_en: e.target.value })}
                       className="border p-1 w-full"
                     />
@@ -186,7 +289,7 @@ export default function AdminProductsPage() {
                 <td className="border p-2">
                   {isEditing ? (
                     <input
-                      value={form.shelf_life_es ?? ""}
+                      value={(form.shelf_life_es ?? "") as any}
                       onChange={(e) => setForm({ ...form, shelf_life_es: e.target.value })}
                       className="border p-1 w-full"
                     />
@@ -223,6 +326,10 @@ export default function AdminProductsPage() {
           })}
         </tbody>
       </table>
+
+      <p className="text-xs text-muted-foreground">
+        Tip: If you want "no multiple", set Multiple empty (null) and Mode = none.
+      </p>
     </div>
   );
 }

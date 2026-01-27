@@ -27,7 +27,7 @@ type Product = {
   image_url: string;
   min_order_quantity: number;
 
-  // ✅ new optional order policy columns (may be null)
+  // ✅ optional order policy columns (may be null)
   order_step_qty?: number | null;
   order_multiple_of?: number | null;
   order_multiple_mode?: "none" | "floor" | "ceil" | "nearest" | null;
@@ -181,19 +181,19 @@ export default function ProductDetailsPage() {
 
   const minQuantity = product?.min_order_quantity ?? 1;
 
-  // ✅ rules: قابل تنظیم + fallback به min_order_quantity
+  // ✅ rules: قابل تنظیم + بدون fallback غلط به min برای multiple
   const rules: QuantityRules | null = useMemo(() => {
     if (!product) return null;
 
     const min = Number(product.min_order_quantity ?? 1);
     const step = Number(product.order_step_qty ?? min);
 
-    // پیش‌فرض: مضرب min (اگر order_multiple_of null بود)
+    // ✅ اگر multiple تو DB خالیه، null بماند (یعنی مضرب اعمال نشود)
     const multipleOf =
-      product.order_multiple_of != null ? Number(product.order_multiple_of) : min;
+      product.order_multiple_of != null ? Number(product.order_multiple_of) : null;
 
-    const mode =
-      (product.order_multiple_mode ?? "ceil") as any;
+    // ✅ اگر multiple نداریم، mode باید none باشد
+    const mode: any = multipleOf ? (product.order_multiple_mode ?? "ceil") : "none";
 
     return {
       min,
@@ -221,9 +221,14 @@ export default function ProductDetailsPage() {
 
       // ✅ pass order policy to cart so Cart page can behave the same
       order_step_qty: product.order_step_qty ?? minQuantity,
+
+      // ✅ مهم: اگر multiple خالیه، null/none بده نه minQuantity
       order_multiple_of:
-        product.order_multiple_of != null ? product.order_multiple_of : minQuantity,
-      order_multiple_mode: product.order_multiple_mode ?? "ceil",
+        product.order_multiple_of != null ? product.order_multiple_of : null,
+      order_multiple_mode:
+        product.order_multiple_of != null
+          ? (product.order_multiple_mode ?? "ceil")
+          : "none",
     });
 
     toast({
