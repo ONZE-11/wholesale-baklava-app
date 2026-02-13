@@ -246,10 +246,10 @@ export const translations = {
       "Everything you need to know about ordering wholesale baklava",
     "faq.q1": "What is the minimum order quantity?",
     "faq.a1":
-      "The first order must include at least 1 tray of baklava containing 24 pieces of baklava.",
+      "The first order must include at least 6 trays of baklava, with a total of 72 pieces of baklava.",
     "faq.q2": "How long does delivery take?",
     "faq.a2":
-      "Delivery within Spain takes 2-3 business days. For other European countries, it typically takes 5-7 business days.",
+      "Delivery within Spain takes 3–4 business days.",
     "faq.q3": "What payment methods do you accept?",
     "faq.a3":
       "We accept online payments via Stripe (credit/debit cards) and cash on delivery for established customers.",
@@ -258,7 +258,7 @@ export const translations = {
       "All baklava is carefully packaged in food-grade containers designed for commercial use, ensuring freshness and quality during transport.",
     "faq.q5": "What is the shelf life of the baklava?",
     "faq.a5":
-      "When stored properly in a cool, dry place, our baklava maintains its quality for up to 30 days.",
+      "When stored properly in a cool, dry place, our baklava maintains its quality for up to 3 months.",
     "faq.q6": "Do you offer custom packaging?",
     "faq.a6":
       "Yes, for large regular orders, we can discuss custom packaging options with your business branding.",
@@ -600,10 +600,10 @@ export const translations = {
       "Todo lo que necesitas saber sobre pedidos de baklava al por mayor",
     "faq.q1": "¿Cuál es la cantidad mínima de pedido?",
     "faq.a1":
-      "El primer pedido debe incluir al menos 1 bandeja de baklava que contenga 24 unidades de baklava.",
+      "El primer pedido debe incluir al menos 6 bandejas de baklava, con un total de 72 unidades de baklava.",
     "faq.q2": "¿Cuánto tiempo tarda la entrega?",
     "faq.a2":
-      "La entrega dentro de España tarda 2-3 días hábiles. Para otros países europeos, generalmente tarda 5-7 días hábiles.",
+      "La entrega dentro de España tarda 3-4 días hábiles. ",
     "faq.q3": "¿Qué métodos de pago aceptan?",
     "faq.a3":
       "Aceptamos pagos en línea a través de Stripe (tarjetas de crédito/débito) y pago contra entrega para clientes establecidos.",
@@ -612,7 +612,7 @@ export const translations = {
       "Todo el baklava se empaqueta cuidadosamente en recipientes aptos para alimentos diseñados para uso comercial, asegurando frescura y calidad durante el transporte.",
     "faq.q5": "¿Cuál es la vida útil del baklava?",
     "faq.a5":
-      "Cuando se almacena adecuadamente en un lugar fresco y seco, nuestro baklava mantiene su calidad hasta 30 días.",
+      "Cuando se almacena adecuadamente en un lugar fresco y seco, nuestro baklava mantiene su calidad hasta 3 meses.",
     "faq.q6": "¿Ofrecen embalaje personalizado?",
     "faq.a6":
       "Sí, para pedidos regulares grandes, podemos discutir opciones de embalaje personalizado con la marca de su negocio.",
