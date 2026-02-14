@@ -68,7 +68,7 @@ export default function ContactPage() {
                     {lang === "es" ? "Dirección" : "Address"}
                   </h3>
                   <p className="text-muted-foreground">
-                    Avenida Francia, N45
+                    Mercado Central, (433-437)
                     <br />
                     Valencia, España
                   </p>
