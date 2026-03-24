@@ -62,24 +62,25 @@ export default function ProductsPage() {
     <main className="py-12">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-4">{t("products.title", lang)}</h1>
+          <h1 className="text-4xl font-bold mb-4">
+            {t("products.title", lang)}
+          </h1>
 
           {/* ✅ پیام وضعیت برای غیر approved */}
           {!isApproved && (
             <p className="text-muted-foreground text-lg">
-              {isAuthenticated
-                ? approvalStatus === "request_docs"
+              {isAuthenticated &&
+                (approvalStatus === "request_docs"
                   ? lang === "es"
                     ? "Se solicitaron documentos. Revisa tu email y complétalos desde el panel."
                     : "Documents were requested. Check your email and complete them from the dashboard."
                   : approvalStatus === "rejected"
-                  ? lang === "es"
-                    ? "Tu cuenta fue rechazada. Revisa tu email o contacta soporte."
-                    : "Your account was rejected. Check your email or contact support."
-                  : lang === "es"
-                  ? "Tu cuenta está pendiente de aprobación. Puedes ver productos, pero no precios."
-                  : "Your account is pending approval. You can browse products, but not see prices."
-                : t("products.register_prompt", lang)}
+                    ? lang === "es"
+                      ? "Tu cuenta fue rechazada. Revisa tu email o contacta soporte."
+                      : "Your account was rejected. Check your email or contact support."
+                    : lang === "es"
+                      ? "Tu cuenta está pendiente de aprobación. Puedes ver productos, pero no precios."
+                      : "Your account is pending approval. You can browse products, but not see prices.")}
             </p>
           )}
         </div>
