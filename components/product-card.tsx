@@ -11,6 +11,7 @@ export interface ProductCardProps {
   approvalStatus?: "pending" | "approved" | "rejected" | "request_docs" | string;
   lang: "en" | "es";
   onAddToCart?: () => void;
+  priority?: boolean;
 }
 
 
@@ -21,6 +22,7 @@ export function ProductCard({
   approvalStatus,
   lang,
   onAddToCart,
+  priority = false,
 }: ProductCardProps) {
   const name = lang === "es" ? product.name_es : product.name_en;
   const price = product.price;
@@ -36,6 +38,8 @@ export function ProductCard({
         <img
           src={product.image_url}
           alt={name}
+          loading={priority ? "eager" : "lazy"}
+          fetchPriority={priority ? "high" : "auto"}
           className="w-full h-64 object-cover rounded cursor-pointer mb-4"
         />
       </Link>
