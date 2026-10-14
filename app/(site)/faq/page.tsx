@@ -80,7 +80,7 @@ export default function FAQPage() {
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <a
-              href="https://wa.me/34601080799"
+              href="https://wa.me/34614546325"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-6 py-3 bg-[#25D366] hover:bg-[#20BA5A] text-white rounded-lg transition-colors"

@@ -196,8 +196,8 @@ export default function TermsPage() {
             </p>
             <p>
               {lang === "es" ? "Teléfono:" : "Phone:"}{" "}
-              <a href="tel:+34601080799" className="text-primary hover:underline">
-                +34 601 080 799
+              <a href="tel:+34614546325" className="text-primary hover:underline">
+                +34 614 546 325
               </a>
             </p>
           </CardContent>

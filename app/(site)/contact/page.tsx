@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,10 +48,10 @@ export default function ContactPage() {
                     {lang === "es" ? "Teléfono" : "Phone"}
                   </h3>
                   <a
-                    href="tel:+34601080799"
+                    href="tel:+34614546325"
                     className="text-primary hover:underline"
                   >
-                    +34 601 080 799
+                    0034 614 546 325
                   </a>
                 </div>
               </div>
