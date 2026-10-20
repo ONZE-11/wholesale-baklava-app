@@ -1,3 +1,4 @@
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -154,7 +155,8 @@ export async function POST(req: Request) {
 
     // ✅ خیلی مهم: ذخیره stripe_session_id روی سفارش
     // (این باعث می‌شود webhook با stripe_session_id راحت match کند)
-    const { error: updErr } = await supabase
+    const adminSupabase = createSupabaseAdminClient();
+    const { error: updErr } = await adminSupabase
       .from("orders")
       .update({
         stripe_session_id: session.id,
@@ -166,6 +168,7 @@ export async function POST(req: Request) {
       .eq("user_id", profile.id);
 
     if (updErr) {
+      console.error("STRIPE_UPDATE_ERROR:", updErr);
       // اگر اینجا fail شود، پرداخت انجام می‌شود ولی ما لینک match نداریم => دردسر
       return NextResponse.json(
         { error: "Failed to attach stripe session to order" },
