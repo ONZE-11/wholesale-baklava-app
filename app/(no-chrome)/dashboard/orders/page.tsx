@@ -450,11 +450,11 @@ export default function OrdersPage() {
                     <div className="flex-1">
                       <p className="font-medium">{getProductName(item.product)}</p>
                       <p className="text-xs text-muted-foreground">
-                        {item.quantity} × ${item.unit_price.toFixed(2)}
+                        {item.quantity} × €{item.unit_price.toFixed(2)}
                       </p>
                     </div>
                     <div className="font-medium text-sm">
-                      ${item.subtotal.toFixed(2)}
+                      €{item.subtotal.toFixed(2)}
                     </div>
                   </div>
                 ))}
@@ -477,7 +477,7 @@ export default function OrdersPage() {
 
             <div className="flex justify-between items-center pt-1 mt-1 border-t text-sm md:text-base font-semibold">
               <span>{t("total")}</span>
-              <span>${order.total_amount.toFixed(2)}</span>
+              <span>€{order.total_amount.toFixed(2)}</span>
             </div>
           </CardContent>
         </Card>
