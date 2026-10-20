@@ -142,6 +142,7 @@ export async function GET(req: NextRequest) {
       .select("id, created_at, status, total_amount, user_id, payment_method", {
         count: "exact",
       })
+      .or("payment_method.neq.stripe,payment_status.eq.paid")
       .order("created_at", { ascending: false })
       .range(from, to);
 

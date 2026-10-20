@@ -67,7 +67,8 @@ export async function GET() {
     // orders count
     const { count: ordersCount, error: ordersErr } = await supabaseAdmin
       .from("orders")
-      .select("id", { count: "exact", head: true });
+      .select("id", { count: "exact", head: true })
+      .or("payment_method.neq.stripe,payment_status.eq.paid");
 
     if (ordersErr) throw new Error(ordersErr.message);
 
@@ -81,7 +82,8 @@ export async function GET() {
     // revenue sum (اگر total_amount عددی است)
     const { data: revenueRows, error: revenueErr } = await supabaseAdmin
       .from("orders")
-      .select("total_amount");
+      .select("total_amount")
+      .eq("payment_status", "paid");
 
     if (revenueErr) throw new Error(revenueErr.message);
 

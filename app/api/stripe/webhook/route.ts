@@ -38,12 +38,19 @@ export async function POST(req: NextRequest) {
   // ✅ helper برای update با session id
   async function updateBySessionId(
     stripeSessionId: string,
-    patch: Record<string, any>
+    patch: Record<string, any>,
+    unpaidOnly = false
   ) {
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from("orders")
       .update(patch)
-      .eq("stripe_session_id", stripeSessionId)
+      .eq("stripe_session_id", stripeSessionId);
+
+    if (unpaidOnly) {
+      query = query.eq("payment_status", "unpaid");
+    }
+
+    const { data, error } = await query
       .select("id, payment_status, status, stripe_session_id, stripe_payment_intent_id");
 
     if (error) throw error;
@@ -52,17 +59,83 @@ export async function POST(req: NextRequest) {
 
   try {
     // ✅ 1) پرداخت موفق
-    if (event.type === "checkout.session.completed") {
+    if (
+      event.type === "checkout.session.completed" ||
+      event.type === "checkout.session.async_payment_succeeded"
+    ) {
       const session = event.data.object as Stripe.Checkout.Session;
 
       const stripeSessionId = session.id;
       const stripePaymentIntentId = (session.payment_intent as string | null) ?? null;
 
+      // Only confirm payments that Stripe reports as paid.
+      if (session.payment_status !== "paid") {
+        return NextResponse.json({ received: true });
+      }
+
+      // Read the original order using the server-side admin client.
+      const { data: order, error: orderError } = await supabaseAdmin
+        .from("orders")
+        .select("id, total_amount, payment_method, payment_status, status")
+        .eq("stripe_session_id", stripeSessionId)
+        .maybeSingle();
+
+      if (orderError) throw orderError;
+
+      if (!order) {
+        return new Response("Order not found", { status: 400 });
+      }
+
+      if (order.payment_method !== "stripe") {
+        return new Response("Invalid payment method", { status: 400 });
+      }
+
+      if (
+        order.payment_status !== "paid" &&
+        (
+          order.payment_status !== "unpaid" ||
+          !["pending", "pending_payment"].includes(order.status)
+        )
+      ) {
+        console.error("STRIPE_UNEXPECTED_ORDER_STATE", {
+          orderId: order.id,
+          paymentStatus: order.payment_status,
+          status: order.status,
+        });
+
+        return new Response("Order requires payment reconciliation", {
+          status: 409,
+        });
+      }
+      const expectedCents = Math.round(Number(order.total_amount) * 100);
+
+      if (
+        !Number.isSafeInteger(expectedCents) ||
+        expectedCents <= 0 ||
+        session.currency?.toLowerCase() !== "eur" ||
+        session.amount_total !== expectedCents ||
+        session.metadata?.orderId !== order.id
+      ) {
+        console.error("STRIPE_PAYMENT_MISMATCH", {
+          orderId: order.id,
+          expectedCents,
+          paidCents: session.amount_total,
+          currency: session.currency,
+        });
+
+        return new Response("Payment verification failed", { status: 400 });
+      }
+
+      // Duplicate webhook delivery must not change a paid order.
+      if (order.payment_status === "paid") {
+        return NextResponse.json({ received: true });
+      }
+
       const updated = await updateBySessionId(stripeSessionId, {
         payment_status: "paid",
         status: "processing",
         stripe_payment_intent_id: stripePaymentIntentId,
-      });
+      }, true);
 
       if (!updated.length) {
         console.error("❌ No order found for stripe_session_id:", stripeSessionId);
@@ -81,7 +154,7 @@ export async function POST(req: NextRequest) {
       await updateBySessionId(stripeSessionId, {
         payment_status: "cancelled",
         status: "cancelled",
-      });
+      }, true);
 
       return NextResponse.json({ received: true });
     }
@@ -94,7 +167,7 @@ export async function POST(req: NextRequest) {
       await updateBySessionId(stripeSessionId, {
         payment_status: "failed",
         status: "payment_failed",
-      });
+      }, true);
 
       return NextResponse.json({ received: true });
     }

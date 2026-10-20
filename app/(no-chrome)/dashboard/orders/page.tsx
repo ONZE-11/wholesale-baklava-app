@@ -225,6 +225,7 @@ export default function OrdersPage() {
       `
       )
       .eq("user_id", profileId)
+      .or("payment_method.neq.stripe,payment_status.eq.paid")
       .order("created_at", { ascending: false })
       .range((currentPage - 1) * pageSize, currentPage * pageSize - 1);
 

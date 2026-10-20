@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     // ✅ امنیت: سفارش باید مال همین کاربر باشد
     const { data: order, error: orderErr } = await supabase
       .from("orders")
-      .select("id, user_id, payment_method, payment_status, status")
+      .select("id, user_id, payment_method, payment_status, status, total_amount, stripe_session_id")
       .eq("id", orderId)
       .eq("user_id", profile.id)
       .maybeSingle();
@@ -75,38 +75,84 @@ export async function POST(req: Request) {
     }
 
     // ✅ اگر سفارش قبلا paid شده، دوباره session نساز
-    if (order.payment_status === "paid") {
+    if (
+      order.payment_method !== "stripe" ||
+      order.payment_status !== "unpaid" ||
+      !["pending", "pending_payment"].includes(order.status)
+    ) {
       return NextResponse.json(
-        { error: "Order already paid" },
+        { error: "Order is not eligible for Stripe checkout" },
+        { status: 409 }
+      );
+    }
+
+    // Reuse the existing Stripe Checkout Session when possible.
+    if (order.stripe_session_id) {
+      const existingSession = await stripe.checkout.sessions.retrieve(
+        order.stripe_session_id
+      );
+
+      if (
+        existingSession.status === "open" &&
+        existingSession.payment_status === "unpaid" &&
+        existingSession.url
+      ) {
+        return NextResponse.json({ url: existingSession.url });
+      }
+
+      return NextResponse.json(
+        { error: "Existing Stripe session is no longer payable" },
+        { status: 409 }
+      );
+    }
+    // Read the actual purchased items from the stored order.
+    const adminSupabaseForItems = createSupabaseAdminClient();
+
+    const { data: storedItems, error: storedItemsError } =
+      await adminSupabaseForItems
+        .from("order_items")
+        .select("product_id, quantity, unit_price")
+        .eq("order_id", orderId);
+
+    if (storedItemsError || !storedItems || storedItems.length === 0) {
+      return NextResponse.json(
+        { error: "Stored order items not found" },
         { status: 400 }
       );
     }
 
-    // ✅ قیمت‌ها فقط از DB (امنیت)
-    const productIds = items.map((x) => x.productId);
+    const normalized = storedItems.map((item) => ({
+      price: Number(item.unit_price),
+      quantity: Number(item.quantity),
+    }));
 
-    const { data: products, error: prodErr } = await supabase
-      .from("products")
-      .select("id, price")
-      .in("id", productIds);
-
-    if (prodErr || !products) {
+    if (normalized.some((item) =>
+      !Number.isFinite(item.price) ||
+      item.price <= 0 ||
+      !Number.isSafeInteger(item.quantity) ||
+      item.quantity <= 0
+    )) {
       return NextResponse.json(
-        { error: "Failed to load products" },
-        { status: 500 }
+        { error: "Invalid stored order items" },
+        { status: 400 }
       );
     }
 
-    const priceMap = new Map<string, number>();
-    for (const p of products) priceMap.set(String(p.id), Number(p.price));
-
-    const normalized = items.map((it) => {
-      const price = priceMap.get(String(it.productId));
-      if (!price) throw new Error(`Product not found: ${it.productId}`);
-      return { price, quantity: Number(it.quantity) };
-    });
-
     const totals = calcTotalsFromItems(normalized);
+
+    const expectedCents = toCents(Number(order.total_amount));
+    const calculatedCents = toCents(totals.total);
+
+    if (
+      !Number.isSafeInteger(expectedCents) ||
+      expectedCents <= 0 ||
+      calculatedCents !== expectedCents
+    ) {
+      return NextResponse.json(
+        { error: "Stored order total mismatch" },
+        { status: 409 }
+      );
+    }
     const subtotalCents = toCents(totals.subtotal);
     const taxCents = toCents(totals.tax);
 

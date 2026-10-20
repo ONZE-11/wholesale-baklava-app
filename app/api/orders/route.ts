@@ -50,12 +50,75 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const calcItems = body.items.map((item: any) => ({
-      price: Number(item.price),
-      quantity: Number(item.quantity),
+    if (!["cash", "stripe"].includes(body.paymentMethod)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid payment method" },
+        { status: 400 }
+      );
+    }
+
+    const quantities = new Map<string, number>();
+
+    for (const item of body.items) {
+      const productId = String(item.productId || "");
+      const quantity = item.quantity;
+
+      if (
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(productId) ||
+        typeof quantity !== "number" ||
+        !Number.isSafeInteger(quantity) ||
+        quantity < 1 ||
+        quantity > 1000
+      ) {
+        return NextResponse.json(
+          { success: false, error: "Invalid product or quantity" },
+          { status: 400 }
+        );
+      }
+
+      const combined = (quantities.get(productId) || 0) + quantity;
+      if (!Number.isSafeInteger(combined) || combined > 1000) {
+        return NextResponse.json(
+          { success: false, error: "Quantity limit exceeded" },
+          { status: 400 }
+        );
+      }
+
+      quantities.set(productId, combined);
+    }
+
+    const productIds = Array.from(quantities.keys());
+
+    const { data: products, error: productsError } = await supabase
+      .from("products")
+      .select("id, price")
+      .in("id", productIds);
+
+    if (productsError || !products || products.length !== productIds.length) {
+      return NextResponse.json(
+        { success: false, error: "One or more products are unavailable" },
+        { status: 400 }
+      );
+    }
+
+    const verifiedItems = products.map((product) => ({
+      productId: String(product.id),
+      price: Number(product.price),
+      quantity: quantities.get(String(product.id))!,
     }));
 
-    const totals = calcTotalsFromItems(calcItems);
+    if (verifiedItems.some((item) =>
+      !Number.isFinite(item.price) ||
+      item.price <= 0 ||
+      !Number.isSafeInteger(item.quantity)
+    )) {
+      return NextResponse.json(
+        { success: false, error: "Invalid product price or quantity" },
+        { status: 400 }
+      );
+    }
+
+    const totals = calcTotalsFromItems(verifiedItems);
 
     const { data: orderData, error: orderError } = await supabase
       .from("orders")
@@ -88,12 +151,12 @@ export async function POST(req: NextRequest) {
 
     const orderId = orderData.id;
 
-    const itemsToInsert = body.items.map((item: any) => ({
+    const itemsToInsert = verifiedItems.map((item) => ({
       order_id: orderId,
       product_id: item.productId,
-      quantity: Number(item.quantity),
-      unit_price: Number(item.price),
-      subtotal: Number(item.price) * Number(item.quantity),
+      quantity: item.quantity,
+      unit_price: item.price,
+      subtotal: item.price * item.quantity,
     }));
 
     const { error: itemsError } = await supabase.from("order_items").insert(itemsToInsert);
