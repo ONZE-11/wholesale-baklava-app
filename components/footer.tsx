@@ -78,17 +78,25 @@ export function Footer() {
                 </a>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-primary" />
-                <a href="tel:+34614546325" className="hover:text-primary">
-                  +34 614 546 325
-                </a>
-              </div>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-primary" />
+                  <a href="tel:+34614546325" className="hover:text-primary">
+                    +34 614 546 325
+                  </a>
+                </div>
 
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-primary" />
+                  <a href="tel:+34601080799" className="hover:text-primary">
+                    +34 601 080 799
+                  </a>
+                </div>
+              </div>
               <div className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 text-primary mt-0.5" />
                 <div>
-                  <p>Mercado Central, (433-437)</p>
+                  <p>Carrer Valencia, 125 Torrent</p>
                   <p>Valencia, España</p>
                 </div>
               </div>

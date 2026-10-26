@@ -16,7 +16,9 @@ export default function TermsPage() {
         <Card className="border-amber-200 shadow-lg mb-6">
           <CardHeader>
             <CardTitle>
-              {lang === "es" ? "1. Aceptación de Términos" : "1. Acceptance of Terms"}
+              {lang === "es"
+                ? "1. Aceptación de Términos"
+                : "1. Acceptance of Terms"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-muted-foreground">
@@ -31,7 +33,9 @@ export default function TermsPage() {
         <Card className="border-amber-200 shadow-lg mb-6">
           <CardHeader>
             <CardTitle>
-              {lang === "es" ? "2. Registro de Cuenta B2B" : "2. B2B Account Registration"}
+              {lang === "es"
+                ? "2. Registro de Cuenta B2B"
+                : "2. B2B Account Registration"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-muted-foreground">
@@ -78,7 +82,11 @@ export default function TermsPage() {
                   ? "Cantidades mínimas de pedido según se especifica por producto"
                   : "Minimum order quantities as specified per product"}
               </li>
-              <li>{lang === "es" ? "Disponibilidad de stock" : "Stock availability"}</li>
+              <li>
+                {lang === "es"
+                  ? "Disponibilidad de stock"
+                  : "Stock availability"}
+              </li>
               <li>
                 {lang === "es"
                   ? "Verificación de pago antes del envío"
@@ -91,7 +99,9 @@ export default function TermsPage() {
         <Card className="border-amber-200 shadow-lg mb-6">
           <CardHeader>
             <CardTitle>
-              {lang === "es" ? "4. Pago y Facturación" : "4. Payment and Billing"}
+              {lang === "es"
+                ? "4. Pago y Facturación"
+                : "4. Payment and Billing"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-muted-foreground">
@@ -106,7 +116,9 @@ export default function TermsPage() {
         <Card className="border-amber-200 shadow-lg mb-6">
           <CardHeader>
             <CardTitle>
-              {lang === "es" ? "5. Envío y Entrega" : "5. Shipping and Delivery"}
+              {lang === "es"
+                ? "5. Envío y Entrega"
+                : "5. Shipping and Delivery"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-muted-foreground">
@@ -121,7 +133,9 @@ export default function TermsPage() {
         <Card className="border-amber-200 shadow-lg mb-6">
           <CardHeader>
             <CardTitle>
-              {lang === "es" ? "6. Cancelaciones y Devoluciones" : "6. Cancellations and Returns"}
+              {lang === "es"
+                ? "6. Cancelaciones y Devoluciones"
+                : "6. Cancellations and Returns"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-muted-foreground">
@@ -151,7 +165,9 @@ export default function TermsPage() {
         <Card className="border-amber-200 shadow-lg mb-6">
           <CardHeader>
             <CardTitle>
-              {lang === "es" ? "8. Limitación de Responsabilidad" : "8. Limitation of Liability"}
+              {lang === "es"
+                ? "8. Limitación de Responsabilidad"
+                : "8. Limitation of Liability"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-muted-foreground">
@@ -166,7 +182,9 @@ export default function TermsPage() {
         <Card className="border-amber-200 shadow-lg mb-6">
           <CardHeader>
             <CardTitle>
-              {lang === "es" ? "9. Modificaciones de Términos" : "9. Modifications to Terms"}
+              {lang === "es"
+                ? "9. Modificaciones de Términos"
+                : "9. Modifications to Terms"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-muted-foreground">
@@ -180,7 +198,9 @@ export default function TermsPage() {
 
         <Card className="border-amber-200 shadow-lg">
           <CardHeader>
-            <CardTitle>{lang === "es" ? "10. Contacto" : "10. Contact"}</CardTitle>
+            <CardTitle>
+              {lang === "es" ? "10. Contacto" : "10. Contact"}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-muted-foreground">
             <p>
@@ -190,16 +210,30 @@ export default function TermsPage() {
             </p>
             <p>
               Email:{" "}
-              <a href="mailto:baklavavalencia@gmail.com" className="text-primary hover:underline">
+              <a
+                href="mailto:baklavavalencia@gmail.com"
+                className="text-primary hover:underline"
+              >
                 baklavavalencia@gmail.com
               </a>
             </p>
-            <p>
-              {lang === "es" ? "Teléfono:" : "Phone:"}{" "}
-              <a href="tel:+34614546325" className="text-primary hover:underline">
+            <div className="flex flex-col gap-1">
+              <p>{lang === "es" ? "Teléfono:" : "Phone:"}</p>
+
+              <a
+                href="tel:+34614546325"
+                className="text-primary hover:underline"
+              >
                 +34 614 546 325
               </a>
-            </p>
+
+              <a
+                href="tel:+34601080799"
+                className="text-primary hover:underline"
+              >
+                +34 601 080 799
+              </a>
+            </div>
           </CardContent>
         </Card>
       </div>

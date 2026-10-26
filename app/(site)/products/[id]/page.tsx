@@ -1,5 +1,5 @@
 "use client";
-//products/[id]/page.tsx
+// products/[id]/page.tsx
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
@@ -35,12 +35,12 @@ type Product = {
   image_url: string;
   min_order_quantity: number;
 
-  // ✅ optional order policy columns (may be null)
+  // Optional order policy columns (may be null)
   order_step_qty?: number | null;
   order_multiple_of?: number | null;
   order_multiple_mode?: "none" | "floor" | "ceil" | "nearest" | null;
 
-  // localized fields (dynamic)
+  // Localized fields (dynamic)
   [key: string]: any;
 };
 
@@ -71,14 +71,14 @@ export default function ProductDetailsPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [isApproved, setIsApproved] = useState(false);
 
-  // ✅ string برای تایپ راحت در موبایل
+  // Keep quantity as a string so typing on mobile is easy
   const [quantityInput, setQuantityInput] = useState<string>("");
 
   const [loading, setLoading] = useState(true);
-  // ✅ خطا به صورت کلید، نه متن وابسته به زبان
+  // Store the error as a key, not language-dependent text
   const [errorKey, setErrorKey] = useState<ErrorKey | null>(null);
 
-  // fetch: user approval
+  // Fetch: user approval
   useEffect(() => {
     let mounted = true;
 
@@ -111,7 +111,7 @@ export default function ProductDetailsPage() {
           return;
         }
 
-        // اگر بخوای ناقص بودن پروفایل رو چک کنی:
+        // To also check for an incomplete profile:
         // const incomplete = isProfileIncomplete(profile);
 
         setIsApproved(profile?.approval_status === "approved");
@@ -126,7 +126,7 @@ export default function ProductDetailsPage() {
     };
   }, [supabase]);
 
-  // ✅ fetch: product فقط با تغییر id
+  // Fetch: product (only when id changes)
   useEffect(() => {
     if (!id) return;
 
@@ -191,20 +191,20 @@ export default function ProductDetailsPage() {
 
   const minQuantity = product?.min_order_quantity ?? 1;
 
-  // ✅ rules: قابل تنظیم + بدون fallback غلط به min برای multiple
+  // Quantity rules: configurable, and no wrong fallback to min for "multiple"
   const rules: QuantityRules | null = useMemo(() => {
     if (!product) return null;
 
     const min = Number(product.min_order_quantity ?? 1);
     const step = Number(product.order_step_qty ?? min);
 
-    // ✅ اگر multiple تو DB خالیه، null بماند (یعنی مضرب اعمال نشود)
+    // If "multiple" is empty in the DB, keep it null (no multiple enforced)
     const multipleOf =
       product.order_multiple_of != null
         ? Number(product.order_multiple_of)
         : null;
 
-    // ✅ اگر multiple نداریم، mode باید none باشد
+    // Without a multiple, mode must be "none"
     const mode: any = multipleOf
       ? (product.order_multiple_mode ?? "ceil")
       : "none";
@@ -230,13 +230,13 @@ export default function ProductDetailsPage() {
       unit: product.unit,
       imageUrl: product.image_url,
 
-      // ✅ keep original
+      // Keep original
       min_order_quantity: minQuantity,
 
-      // ✅ pass order policy to cart so Cart page can behave the same
+      // Pass order policy to cart so the Cart page behaves the same
       order_step_qty: product.order_step_qty ?? minQuantity,
 
-      // ✅ مهم: اگر multiple خالیه، null/none بده نه minQuantity
+      // Important: if "multiple" is empty, pass null/none instead of minQuantity
       order_multiple_of:
         product.order_multiple_of != null ? product.order_multiple_of : null,
       order_multiple_mode:
@@ -339,7 +339,7 @@ export default function ProductDetailsPage() {
                         {lang === "es" ? "unidades" : "pcs"}
                       </Badge>
 
-                      {/* ✅ Quantity - mobile friendly */}
+                      {/* Quantity - mobile friendly */}
                       <div className="mb-4">
                         <Label className="text-muted-foreground">
                           {t("cart.quantity", lang)}
@@ -521,7 +521,7 @@ export default function ProductDetailsPage() {
               </InfoCard>
 
               <InfoCard icon={Package} title={t("product.ingredients", lang)}>
-                {localized.ingredients}
+                <FormattedIngredients text={localized.ingredients} />
               </InfoCard>
 
               <InfoCard icon={Refrigerator} title={t("product.storage", lang)}>
@@ -548,25 +548,73 @@ export default function ProductDetailsPage() {
     </div>
   );
 }
-function FormattedIngredients({ text }: { text: string }) {
-  const importantWords =
-    /\b(TRIGO|GLUTEN|FRUTOS SECOS|FRUTOS DE CÁSCARA|ALMENDRAS?|ANACARDOS|CACAHUETES|PISTACHOS?|NUECES|SOJA|SÉSAMO|SESAMO|MOSTAZA|ALTRAMUCES|WHEAT|NUTS|TREE NUTS|ALMONDS?|CASHEWS|PEANUTS|PISTACHIOS|WALNUTS|SOY|SESAME|MUSTARD|LUPIN)\b/gi;
 
-  const sectionTitles =
-    /^(MASA|GRASA DE ORIGEN VEGETAL|FRUTOS SECOS|OTROS INGREDIENTES|SIROPE|ALÉRGENOS|ALERGENOS|PUEDE CONTENER TRAZAS DE|ADVERTENCIA|DOUGH|VEGETABLE FAT|NUTS|OTHER INGREDIENTS|SYRUP|ALLERGENS|MAY CONTAIN TRACES OF|WARNING)\s*:/i;
+/* ------------------------------------------------------------------ */
+/* Ingredients formatting                                              */
+/* ------------------------------------------------------------------ */
 
-  const lines = String(text || "").split(/\r?\n/);
+// EU-14 allergens (Spanish + English). Longer phrases are sorted first so
+// "TREE NUTS" wins over "NUTS", "FRUTOS DE CÁSCARA" over shorter matches, etc.
+const ALLERGEN_TERMS = [
+  // Cereals containing gluten
+  "TRIGO", "CEBADA", "CENTENO", "AVENA", "ESPELTA", "KAMUT", "GLUTEN",
+  "WHEAT", "BARLEY", "RYE", "OATS?", "SPELT",
+  // Milk
+  "LECHE", "LACTOSA", "SUERO", "QUESO", "MILK", "LACTOSE", "WHEY", "CHEESE",
+  // Eggs
+  "HUEVOS?", "EGGS?",
+  // Nuts & peanuts
+  "FRUTOS SECOS", "FRUTOS DE CÁSCARA", "ALMENDRAS?", "AVELLANAS?",
+  "ANACARDOS?", "PISTACHOS?", "NUECES", "NUEZ", "CACAHUETES?",
+  "TREE NUTS", "NUTS", "ALMONDS?", "HAZELNUTS?", "CASHEWS?",
+  "PISTACHIOS?", "WALNUTS?", "PEANUTS?",
+  // Other EU allergens
+  "SOJA", "SOYA?", "SÉSAMO", "SESAMO", "SESAME", "MOSTAZA", "MUSTARD",
+  "APIO", "CELERY", "ALTRAMUCES?", "LUPIN",
+  "PESCADO", "FISH", "CRUSTÁCEOS", "CRUSTACEANS", "MOLUSCOS", "MOLLUSCS",
+  "SULFITOS", "SULPHITES", "SULFITES",
+  "DIÓXIDO DE AZUFRE", "SULPHUR DIOXIDE",
+].sort((a, b) => b.length - a.length);
 
-  function formatImportantWords(value: string) {
-    return value.split(importantWords).map((part, index) =>
-      importantWords.test(part) ? (
-        <strong key={index} className="font-bold text-foreground">
-          {part}
-        </strong>
-      ) : (
-        <React.Fragment key={index}>{part}</React.Fragment>
-      ),
+// Unicode-aware word boundaries (\b does not handle accented letters).
+// A single capturing group => split() puts matches at odd indices.
+const ALLERGEN_RE = new RegExp(
+  `(?<![\\p{L}\\p{N}])(${ALLERGEN_TERMS.join("|")})(?![\\p{L}\\p{N}])`,
+  "giu",
+);
+
+const SECTION_TITLES = [
+  "MASA", "GRASA DE ORIGEN VEGETAL", "FRUTOS SECOS", "OTROS INGREDIENTES",
+  "SIROPE", "ALÉRGENOS", "ALERGENOS", "PUEDE CONTENER TRAZAS DE",
+  "ADVERTENCIA",
+  "DOUGH", "VEGETABLE FAT", "NUTS", "OTHER INGREDIENTS", "SYRUP",
+  "ALLERGENS", "MAY CONTAIN TRACES OF", "WARNING",
+].sort((a, b) => b.length - a.length);
+
+const SECTION_RE = new RegExp(`^(${SECTION_TITLES.join("|")})\\s*:\\s*`, "iu");
+
+function highlightAllergens(value: string): React.ReactNode[] {
+  return value.split(ALLERGEN_RE).map((part, i) => {
+    if (!part) return null;
+    // Odd indices are the captured allergen matches
+    return i % 2 === 1 ? (
+      <strong key={i} className="font-bold text-foreground">
+        {part}
+      </strong>
+    ) : (
+      <React.Fragment key={i}>{part}</React.Fragment>
     );
+  });
+}
+
+function FormattedIngredients({ text }: { text: string }) {
+  const lines = useMemo(
+    () => String(text ?? "").trim().split(/\r?\n/),
+    [text],
+  );
+
+  if (!String(text ?? "").trim()) {
+    return <p>—</p>;
   }
 
   return (
@@ -574,29 +622,31 @@ function FormattedIngredients({ text }: { text: string }) {
       {lines.map((line, index) => {
         const trimmed = line.trim();
 
-        if (!trimmed) {
-          return <div key={index} className="h-2" />;
-        }
+        // Blank line => small visual gap between sections
+        if (!trimmed) return <div key={index} className="h-1" aria-hidden />;
 
-        const match = trimmed.match(sectionTitles);
+        const match = trimmed.match(SECTION_RE);
 
         if (match) {
-          const title = match[0];
-          const remainingText = trimmed.slice(title.length);
-
+          const rest = trimmed.slice(match[0].length);
           return (
             <p key={index}>
-              <strong className="font-bold text-foreground">{title}</strong>{" "}
-              {formatImportantWords(remainingText)}
+              <strong className="font-bold text-foreground">{match[1]}:</strong>{" "}
+              {highlightAllergens(rest)}
             </p>
           );
         }
 
-        return <p key={index}>{formatImportantWords(trimmed)}</p>;
+        return <p key={index}>{highlightAllergens(trimmed)}</p>;
       })}
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/* Shared UI                                                           */
+/* ------------------------------------------------------------------ */
+
 function InfoCard({
   icon: Icon,
   title,
