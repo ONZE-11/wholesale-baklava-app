@@ -5,7 +5,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Lock, Package, Clock, Refrigerator, List } from "lucide-react";
+import {
+  ArrowLeft,
+  Lock,
+  Package,
+  Clock,
+  Refrigerator,
+  List,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -90,7 +97,9 @@ export default function ProductDetailsPage() {
 
         const { data: profile, error: profileError } = await supabase
           .from("users")
-          .select("approval_status, business_name, cif, phone, address, city, country")
+          .select(
+            "approval_status, business_name, cif, phone, address, city, country",
+          )
           .eq("auth_id", user.id)
           .maybeSingle();
 
@@ -191,10 +200,14 @@ export default function ProductDetailsPage() {
 
     // ✅ اگر multiple تو DB خالیه، null بماند (یعنی مضرب اعمال نشود)
     const multipleOf =
-      product.order_multiple_of != null ? Number(product.order_multiple_of) : null;
+      product.order_multiple_of != null
+        ? Number(product.order_multiple_of)
+        : null;
 
     // ✅ اگر multiple نداریم، mode باید none باشد
-    const mode: any = multipleOf ? (product.order_multiple_mode ?? "ceil") : "none";
+    const mode: any = multipleOf
+      ? (product.order_multiple_mode ?? "ceil")
+      : "none";
 
     return {
       min,
@@ -234,7 +247,8 @@ export default function ProductDetailsPage() {
 
     toast({
       title: lang === "es" ? "Añadido" : "Added",
-      description: lang === "es" ? "Producto añadido al carrito." : "Added to cart.",
+      description:
+        lang === "es" ? "Producto añadido al carrito." : "Added to cart.",
     });
   };
 
@@ -243,7 +257,9 @@ export default function ProductDetailsPage() {
     if (errorKey === "not_found") {
       return lang === "es" ? "Producto no encontrado." : "Product not found.";
     }
-    return lang === "es" ? "Error cargando el producto." : "Failed to load product.";
+    return lang === "es"
+      ? "Error cargando el producto."
+      : "Failed to load product.";
   }, [errorKey, lang]);
 
   return (
@@ -303,13 +319,19 @@ export default function ProductDetailsPage() {
                   <h1 className="text-3xl lg:text-4xl font-semibold tracking-tight mb-2">
                     {localized.name}
                   </h1>
-                  <p className="text-muted-foreground mb-5">{localized.description}</p>
+                  <p className="text-muted-foreground mb-5">
+                    {localized.description}
+                  </p>
 
                   {isApproved ? (
                     <>
                       <div className="flex items-baseline gap-2 mb-4">
-                        <span className="text-4xl font-semibold">€{product.price}</span>
-                        <span className="text-sm text-muted-foreground">/ {product.unit}</span>
+                        <span className="text-4xl font-semibold">
+                          €{product.price}
+                        </span>
+                        <span className="text-sm text-muted-foreground">
+                          / {product.unit}
+                        </span>
                       </div>
 
                       <Badge variant="secondary" className="mb-4">
@@ -332,7 +354,10 @@ export default function ProductDetailsPage() {
                             onClick={() => {
                               if (!rules) return;
                               const current = parseRaw(quantityInput, rules);
-                              const next = normalize(current - rules.step, rules);
+                              const next = normalize(
+                                current - rules.step,
+                                rules,
+                              );
                               setQuantityInput(String(next));
                             }}
                             aria-label="Decrease quantity"
@@ -363,7 +388,10 @@ export default function ProductDetailsPage() {
                             onClick={() => {
                               if (!rules) return;
                               const current = parseRaw(quantityInput, rules);
-                              const next = normalize(current + rules.step, rules);
+                              const next = normalize(
+                                current + rules.step,
+                                rules,
+                              );
                               setQuantityInput(String(next));
                             }}
                             aria-label="Increase quantity"
@@ -373,7 +401,9 @@ export default function ProductDetailsPage() {
 
                           <Button
                             type="button"
-                            onClick={() => setQuantityInput(String(minQuantity))}
+                            onClick={() =>
+                              setQuantityInput(String(minQuantity))
+                            }
                             variant="ghost"
                             size="sm"
                             className="text-muted-foreground hover:text-foreground"
@@ -404,7 +434,90 @@ export default function ProductDetailsPage() {
             {/* Info cards */}
             <div className="grid md:grid-cols-2 gap-6">
               <InfoCard icon={List} title={t("product.description", lang)}>
-                {localized.longDescription}
+                {(() => {
+                  const fullText = String(localized.longDescription || "");
+
+                  const nutritionHeader =
+                    /INFORMACIÓN NUTRICIONAL POR 100\s*g|NUTRITIONAL INFORMATION PER 100\s*g/i;
+
+                  const match = nutritionHeader.exec(fullText);
+
+                  const description = match
+                    ? fullText.slice(0, match.index).trim()
+                    : fullText.trim();
+
+                  const nutritionRows =
+                    lang === "es"
+                      ? [
+                          ["Valor energético", "1.730 kJ / 414 kcal"],
+                          ["Grasas", "21,8 g"],
+                          ["De las cuales, saturadas", "9,0 g"],
+                          ["Hidratos de carbono", "48,6 g"],
+                          ["De los cuales, azúcares", "25,2 g"],
+                          ["Proteínas", "6,6 g"],
+                          ["Sal", "0,37 g"],
+                        ]
+                      : [
+                          ["Energy", "1,730 kJ / 414 kcal"],
+                          ["Fat", "21.8 g"],
+                          ["Of which saturates", "9.0 g"],
+                          ["Carbohydrates", "48.6 g"],
+                          ["Of which sugars", "25.2 g"],
+                          ["Protein", "6.6 g"],
+                          ["Salt", "0.37 g"],
+                        ];
+
+                  return (
+                    <div>
+                      <p className="whitespace-pre-line">{description}</p>
+
+                      <div className="mt-6">
+                        <h3 className="font-bold text-base text-foreground mb-3">
+                          {lang === "es"
+                            ? "INFORMACIÓN NUTRICIONAL POR 100 g"
+                            : "NUTRITIONAL INFORMATION PER 100 g"}
+                        </h3>
+
+                        <div className="overflow-hidden rounded-lg border">
+                          <table className="w-full text-sm">
+                            <thead className="bg-muted/60">
+                              <tr>
+                                <th className="px-3 py-3 text-left font-semibold text-foreground">
+                                  {lang === "es"
+                                    ? "Valor nutricional"
+                                    : "Nutritional information"}
+                                </th>
+                                <th className="px-3 py-3 text-right font-semibold text-foreground">
+                                  {lang === "es" ? "Cantidad" : "Amount"}
+                                </th>
+                              </tr>
+                            </thead>
+
+                            <tbody>
+                              {nutritionRows.map(([label, value], index) => (
+                                <tr
+                                  key={label}
+                                  className={
+                                    index % 2 === 0
+                                      ? "bg-background"
+                                      : "bg-muted/30"
+                                  }
+                                >
+                                  <td className="px-3 py-2 border-t">
+                                    {label}
+                                  </td>
+                                  <td className="px-3 py-2 border-t text-right font-medium whitespace-nowrap">
+                                    {value}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </InfoCard>
 
               <InfoCard icon={Package} title={t("product.ingredients", lang)}>
@@ -422,7 +535,9 @@ export default function ProductDetailsPage() {
                     <span className="font-medium text-foreground">
                       {t("product.packaging", lang)}:
                     </span>{" "}
-                    <span className="text-muted-foreground">{localized.packaging}</span>
+                    <span className="text-muted-foreground">
+                      {localized.packaging}
+                    </span>
                   </div>
                 </div>
               </InfoCard>
@@ -433,7 +548,55 @@ export default function ProductDetailsPage() {
     </div>
   );
 }
+function FormattedIngredients({ text }: { text: string }) {
+  const importantWords =
+    /\b(TRIGO|GLUTEN|FRUTOS SECOS|FRUTOS DE CÁSCARA|ALMENDRAS?|ANACARDOS|CACAHUETES|PISTACHOS?|NUECES|SOJA|SÉSAMO|SESAMO|MOSTAZA|ALTRAMUCES|WHEAT|NUTS|TREE NUTS|ALMONDS?|CASHEWS|PEANUTS|PISTACHIOS|WALNUTS|SOY|SESAME|MUSTARD|LUPIN)\b/gi;
 
+  const sectionTitles =
+    /^(MASA|GRASA DE ORIGEN VEGETAL|FRUTOS SECOS|OTROS INGREDIENTES|SIROPE|ALÉRGENOS|ALERGENOS|PUEDE CONTENER TRAZAS DE|ADVERTENCIA|DOUGH|VEGETABLE FAT|NUTS|OTHER INGREDIENTS|SYRUP|ALLERGENS|MAY CONTAIN TRACES OF|WARNING)\s*:/i;
+
+  const lines = String(text || "").split(/\r?\n/);
+
+  function formatImportantWords(value: string) {
+    return value.split(importantWords).map((part, index) =>
+      importantWords.test(part) ? (
+        <strong key={index} className="font-bold text-foreground">
+          {part}
+        </strong>
+      ) : (
+        <React.Fragment key={index}>{part}</React.Fragment>
+      ),
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {lines.map((line, index) => {
+        const trimmed = line.trim();
+
+        if (!trimmed) {
+          return <div key={index} className="h-2" />;
+        }
+
+        const match = trimmed.match(sectionTitles);
+
+        if (match) {
+          const title = match[0];
+          const remainingText = trimmed.slice(title.length);
+
+          return (
+            <p key={index}>
+              <strong className="font-bold text-foreground">{title}</strong>{" "}
+              {formatImportantWords(remainingText)}
+            </p>
+          );
+        }
+
+        return <p key={index}>{formatImportantWords(trimmed)}</p>;
+      })}
+    </div>
+  );
+}
 function InfoCard({
   icon: Icon,
   title,
